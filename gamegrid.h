@@ -1,26 +1,36 @@
 #ifndef GAMEGRID_H
 #define GAMEGRID_H
 
-#include <QObject>
-#include <QVector>
+#include <QWidget>
+#include <QGridLayout>
+#include <vector>
 #include "algaecell.h"
+#include "algaetype.h"
 
-class GameGrid : public QObject {
+class GameGrid : public QWidget {
     Q_OBJECT
 
 public:
-    static const int ROWS = 10;
-    static const int COLS = 8;
-
-    explicit GameGrid(QObject* parent = nullptr);
+    explicit GameGrid(QWidget* parent = nullptr);
     ~GameGrid();
 
-    // Cell access
-    AlgaeCell* getCell(int row, int col);
+    void initialize(int rows, int cols);
+    void update(double deltaTime);
+    void reset();
+
+    AlgaeCell* getCell(int row, int col) const;
+    bool plantAlgae(int row, int col, AlgaeType::Type type);
+    void removeAlgae(int row, int col);
+
+    // 新增：鼠标交互相关方法
+    void setSelectedAlgaeType(AlgaeType::Type type);
+    AlgaeType::Type getSelectedAlgaeType() const { return m_selectedAlgaeType; }
+    void updateCursor();
+    void showShadingArea(int row, int col, bool show);
 
     // Grid properties
-    int getRows() const { return ROWS; }
-    int getCols() const { return COLS; }
+    int getRows() const { return m_rows; }
+    int getCols() const { return m_cols; }
 
     // Light and resources
     double getLightAt(int row) const;
@@ -29,29 +39,44 @@ public:
     double getNitrogenRegenRate(int row, int col) const;
     double getCarbonRegenRate(int row, int col) const;
 
-    // Game actions
-    void update(double deltaTime);
-    void reset();
-
     // Calculate combined effects
-    // 修改函数声明为const
-    int calculateShadingAt(int row, int col) const; // 添加const
+    int calculateShadingAt(int row, int col) const;
     void applyRemoveBonus(int row, int col);
 
 signals:
-    void gridChanged();
     void cellChanged(int row, int col);
+    void algaePlanted(int row, int col, AlgaeType::Type type);
+    void algaeRemoved(int row, int col);
+    void gridChanged();
     void resourcesChanged();
-    void gridUpdated(); // 添加此信号声明
+    void gridUpdated();
+    void cellClicked(int row, int col);
+    void cellHovered(int row, int col, bool entered);
+
+private slots:
+    void onCellClicked(int row, int col);
+    void onCellHovered(int row, int col, bool entered);
 
 private:
-    QVector<QVector<AlgaeCell*>> m_cells;
+    QGridLayout* m_layout;
+    std::vector<std::vector<AlgaeCell*>> m_cells;
+    int m_rows;
+    int m_cols;
+
+    // 新增：鼠标交互相关属性
+    AlgaeType::Type m_selectedAlgaeType;
+    QCursor m_defaultCursor;
+    QCursor m_algaeCursor;
+
     QVector<double> m_baseLight;
     QVector<QVector<double>> m_nitrogen;
     QVector<QVector<double>> m_nitrogenRegen;
     QVector<QVector<double>> m_carbon;
     QVector<QVector<double>> m_carbonRegen;
 
+    void createCells();
+    void clearCells();
+    void updateShadingAreas();
     void initializeGrid();
     void initializeResources();
     void updateResources(double deltaTime);

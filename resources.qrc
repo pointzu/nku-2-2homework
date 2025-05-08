@@ -1,0 +1,30 @@
+<RCC>
+    <qresource prefix="/">
+        <file>images/algae_a.png</file>
+        <file>images/algae_a_hover.png</file>
+        <file>images/algae_a_selected.png</file>
+        <file>images/cursor_algae_a.png</file>
+        <file>images/algae_b.png</file>
+        <file>images/algae_b_hover.png</file>
+        <file>images/algae_b_selected.png</file>
+        <file>images/cursor_algae_b.png</file>
+        <file>images/algae_c.png</file>
+        <file>images/algae_c_hover.png</file>
+        <file>images/algae_c_selected.png</file>
+        <file>images/cursor_algae_c.png</file>
+        <file>sounds/win.wav</file>
+        <file>sounds/lose.wav</file>
+        <file>sounds/click.wav</file>
+        <file>sounds/plant.wav</file>
+        <file>sounds/remove.wav</file>
+        <file>music/background.mp3</file>
+        <file>../resources/st30f0n665joahrrvuj05fechvwkcv10/type_a.png</file>
+        <file>../resources/st30f0n665joahrrvuj05fechvwkcv10/type_b.png</file>
+        <file>../resources/st30f0n665joahrrvuj05fechvwkcv10/type_c.png</file>
+        <file>../resources/st30f0n665joahrrvuj05fechvwkcv10/background_music1.wav</file>
+        <file>../resources/st30f0n665joahrrvuj05fechvwkcv10/background_music2.wav</file>
+        <file>../resources/st30f0n665joahrrvuj05fechvwkcv10/victory.wav</file>
+        <file>../resources/st30f0n665joahrrvuj05fechvwkcv10/2.png</file>
+        <file>../resources/planted.mp3</file>
+    </qresource>
+</RCC>

@@ -1,0 +1,7 @@
+<RCC>
+    <qresource prefix="/">
+        <file>../resources/st30f0n665joahrrvuj05fechvwkcv10/type_a.png</file>
+        <file>../resources/st30f0n665joahrrvuj05fechvwkcv10/type_b.png</file>
+        <file>../resources/st30f0n665joahrrvuj05fechvwkcv10/type_c.png</file>
+    </qresource>
+</RCC>

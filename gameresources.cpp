@@ -101,24 +101,19 @@ void GameResources::reset() {
 }
 
 double GameResources::getWinProgress() const {
-    // Calculate resource progress (as percentage)
-    double carbProgress = qMin(1.0, m_carbohydrates / WIN_CARB);
-    double lipidProgress = qMin(1.0, m_lipids / WIN_LIPID);
-    double proProgress = qMin(1.0, m_proteins / WIN_PRO);
-    double vitProgress = qMin(1.0, m_vitamins / WIN_VIT);
-
-    // Calculate production rate progress
+    // 以生产速率为主，资源量为辅
     double carbRateProgress = qMin(1.0, m_carbRate / TARGET_CARB_RATE);
     double lipidRateProgress = qMin(1.0, m_lipidRate / TARGET_LIPID_RATE);
     double proRateProgress = qMin(1.0, m_proRate / TARGET_PRO_RATE);
     double vitRateProgress = qMin(1.0, m_vitRate / TARGET_VIT_RATE);
-
-    // Total progress is average of all factors
-    double resourceProgress = (carbProgress + lipidProgress + proProgress + vitProgress) / 4.0;
     double rateProgress = (carbRateProgress + lipidRateProgress + proRateProgress + vitRateProgress) / 4.0;
-
-    // Overall progress is minimum of both components (must satisfy both)
-    return qMin(resourceProgress, rateProgress);
+    // 资源量仅作辅助（不拖慢进度，但资源为0时进度不满）
+    double carbProgress = m_carbohydrates > 0 ? 1.0 : 0.0;
+    double lipidProgress = m_lipids > 0 ? 1.0 : 0.0;
+    double proProgress = m_proteins > 0 ? 1.0 : 0.0;
+    double vitProgress = m_vitamins > 0 ? 1.0 : 0.0;
+    double resourceOK = (carbProgress + lipidProgress + proProgress + vitProgress) / 4.0;
+    return qMin(rateProgress, resourceOK);
 }
 
 bool GameResources::checkWinCondition() const {

@@ -3,6 +3,7 @@
 #define ALGAETYPE_H
 
 #include <QString>
+#include <QColor>
 
 class AlgaeType {
 public:
@@ -26,6 +27,10 @@ public:
         double produceRatePro;
         double produceRateVit;
         QString imagePath;
+        QString hoverImagePath;    // 鼠标悬停时的图片
+        QString selectedImagePath; // 选中时的图片
+        QString cursorImagePath;   // 鼠标指针图片
+        QColor shadingColor;       // 遮荫区域的颜色
     };
 
     static Properties getProperties(Type type);

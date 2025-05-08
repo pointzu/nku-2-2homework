@@ -4,10 +4,11 @@
 #include "algaetype.h"
 #include <QObject>
 #include <QPointF>
+#include <QWidget>
 
 class GameGrid;
 
-class AlgaeCell : public QObject {
+class AlgaeCell : public QWidget {
     Q_OBJECT
 
 public:
@@ -37,15 +38,35 @@ public:
     bool isDying() const { return m_status == DYING; }
 
     // Calculate production rates based on current conditions
-    double getCarbProduction() const;
-    double getLipidProduction() const;
-    double getProProduction() const;
-    double getVitProduction() const;
+    double getCarbProduction() const { return m_carbProduction; }
+    double getLipidProduction() const { return m_lipidProduction; }
+    double getProProduction() const { return m_proProduction; }
+    double getVitProduction() const { return m_vitProduction; }
+
+    // 新增：鼠标交互相关方法
+    void setHovered(bool hovered);
+    void setSelected(bool selected);
+    bool isHovered() const { return m_isHovered; }
+    bool isSelected() const { return m_isSelected; }
+    void showShadingArea(bool show);
+    bool isShadingAreaVisible() const { return m_showShadingArea; }
+    void setShadingVisible(bool visible);
+    bool isShadingVisible() const { return m_showShadingArea; }
+
+    void setStatus(Status status);
+
+protected:
+    void paintEvent(QPaintEvent* event) override;
+    void enterEvent(QEnterEvent* event) override;
+    void leaveEvent(QEvent* event) override;
+    void mousePressEvent(QMouseEvent* event) override;
 
 signals:
     void statusChanged(Status newStatus);
     void cellChanged();
     void algaeDied();
+    void cellClicked(int row, int col);
+    void cellHovered(int row, int col, bool entered);
 
 private:
     int m_row;
@@ -59,8 +80,20 @@ private:
     double m_productionMultiplier;
     double m_timeSinceLightLow;
 
+    // 新增：鼠标交互相关属性
+    bool m_isHovered;
+    bool m_isSelected;
+    bool m_showShadingArea = false;
+
+    double m_carbProduction;
+    double m_lipidProduction;
+    double m_proProduction;
+    double m_vitProduction;
+
     void updateStatus();
     void checkSpecialRules();
+    void updateAppearance();
+    void updateProductionRates();
 };
 
 #endif // ALGAECELL_H

@@ -16,6 +16,7 @@ set(PROJECT_SOURCES
         main.cpp
         mainwindow.cpp
         mainwindow.h
+
 )
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
@@ -27,6 +28,7 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         gamegrid.h gamegrid.cpp
         gameresources.h gameresources.cpp
         algaegame.h algaegame.cpp
+        image.qrc
     )
 # Define target properties for Android with Qt 6 as:
 #    set_property(TARGET algaeplus APPEND PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR

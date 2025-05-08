@@ -10,15 +10,15 @@
 class AlgaeGame : public QObject {
     Q_OBJECT
 
-    Q_PROPERTY(bool gameRunning READ isGameRunning NOTIFY gameStateChanged)
+    Q_PROPERTY(bool isGameRunning READ isGameRunning NOTIFY gameStateChanged)
     Q_PROPERTY(AlgaeType::Type selectedAlgaeType READ getSelectedAlgaeType WRITE setSelectedAlgaeType NOTIFY selectedAlgaeChanged)
 
 public:
-    explicit AlgaeGame(QObject* parent = nullptr);
+    explicit AlgaeGame(QWidget* parent = nullptr);
     ~AlgaeGame();
 
     // Game state
-    bool isGameRunning() const { return m_gameRunning; }
+    bool isGameRunning() const { return m_isGameRunning; }
 
     // Algae selection
     AlgaeType::Type getSelectedAlgaeType() const { return m_selectedAlgaeType; }
@@ -45,14 +45,17 @@ public:
 
 public slots:
     void update();
+    void onGridChanged();
     void onResourcesChanged();
+
 signals:
     void gameStateChanged();
     void selectedAlgaeChanged();
     void gameWon();
+    void resourcesUpdated();
 
 private:
-    bool m_gameRunning;
+    bool m_isGameRunning;
     AlgaeType::Type m_selectedAlgaeType;
 
     QTimer* m_updateTimer;
@@ -61,8 +64,9 @@ private:
     GameGrid* m_grid;
     GameResources* m_resources;
 
-    int m_musicVolume;
-    int m_soundEffectsVolume;
+    // 删除音乐相关成员
+    // int m_musicVolume;
+    // int m_soundEffectsVolume;
 
     void updateProductionRates();
 };
