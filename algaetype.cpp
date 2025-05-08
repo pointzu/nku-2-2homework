@@ -105,11 +105,26 @@ bool AlgaeType::canAfford(Type type, double carb, double lipid, double pro, doub
            vit >= props.plantCostVit;
 }
 
-void AlgaeType::deductPlantingCost(Type type, double& carb, double& lipid, double& pro, double& vit) {
+void AlgaeType::getPlantingCost(Type type, double& carb, double& lipid, double& pro, double& vit) {
     Properties props = getProperties(type);
+    carb = static_cast<double>(props.plantCostCarb);
+    lipid = static_cast<double>(props.plantCostLipid);
+    pro = static_cast<double>(props.plantCostPro);
+    vit = static_cast<double>(props.plantCostVit);
+}
 
+void AlgaeType::deductPlantingCost(Type type, double& carb, double& lipid, double& pro, double& vit) {
+    // 实现资源扣除逻辑（例如根据藻类类型减去对应资源）
+    Properties props = getProperties(type);
     carb -= props.plantCostCarb;
     lipid -= props.plantCostLipid;
     pro -= props.plantCostPro;
     vit -= props.plantCostVit;
+}
+QColor AlgaeType::getColor(Type type) {
+    switch (type) {
+    case TYPE_A: return QColor(50, 200, 50);  // 示例绿色
+    case TYPE_B: return QColor(50, 50, 200);  // 示例蓝色
+    default: return QColor(200, 200, 200);    // 默认灰色（无藻类）
+    }
 }

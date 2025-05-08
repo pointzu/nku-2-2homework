@@ -14,7 +14,8 @@ class AlgaeGame : public QObject {
     Q_PROPERTY(AlgaeType::Type selectedAlgaeType READ getSelectedAlgaeType WRITE setSelectedAlgaeType NOTIFY selectedAlgaeChanged)
 
 public:
-    explicit AlgaeGame(QObject* parent = nullptr);
+    // Update constructor to take a QWidget* for GameGrid's parent
+    explicit AlgaeGame(QWidget* gridParent, QObject* parent = nullptr);
     ~AlgaeGame();
 
     // Game state
@@ -49,6 +50,7 @@ public slots:
 signals:
     void gameStateChanged();
     void selectedAlgaeChanged();
+    void algaeTypeSelected(AlgaeType::Type type); // 新增：通知选择的藻类类型
     void gameWon();
 
 private:
@@ -65,6 +67,11 @@ private:
     int m_soundEffectsVolume;
 
     void updateProductionRates();
+
+public:
+    // Add these getters
+    int getMusic() const { return m_musicVolume; }
+    int getSoundEffects() const { return m_soundEffectsVolume; }
 };
 
 #endif // ALGAEGAME_H

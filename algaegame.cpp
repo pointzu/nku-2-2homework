@@ -1,16 +1,17 @@
 #include "algaegame.h"
 #include <QDateTime>
 
-AlgaeGame::AlgaeGame(QObject* parent) : QObject(parent),
-    m_gameRunning(false),
-    m_selectedAlgaeType(AlgaeType::TYPE_A),
-    m_updateTimer(new QTimer(this)),
-    m_lastUpdateTime(0),
-    m_musicVolume(50),
-    m_soundEffectsVolume(50) {
+AlgaeGame::AlgaeGame(QWidget* gridParent, QObject* parent) 
+    : QObject(parent), 
+      m_gameRunning(false),
+      m_selectedAlgaeType(AlgaeType::TYPE_A),
+      m_updateTimer(new QTimer(this)),
+      m_lastUpdateTime(0),
+      m_musicVolume(50),
+      m_soundEffectsVolume(50) {
 
-    // Create grid and resources
-    m_grid = new GameGrid(this);
+    // Pass gridParent (QWidget*) to GameGrid
+    m_grid = new GameGrid(gridParent);
     m_resources = new GameResources(this);
 
     // Set up timer for game updates
@@ -30,6 +31,7 @@ void AlgaeGame::setSelectedAlgaeType(AlgaeType::Type type) {
     if (m_selectedAlgaeType != type) {
         m_selectedAlgaeType = type;
         emit selectedAlgaeChanged();
+        emit algaeTypeSelected(type); // 触发新信号
     }
 }
 
@@ -81,20 +83,21 @@ bool AlgaeGame::plantAlgae(int row, int col) {
     // Try to plant
     AlgaeCell* cell = m_grid->getCell(row, col);
     if (cell && cell->plant(m_selectedAlgaeType)) {
-        // Deduct resources
-        AlgaeType::deductPlantingCost(m_selectedAlgaeType, carb, lipid, pro, vit);
-        m_resources->subtractCarbohydrates(carb - m_resources->getCarbohydrates());
-        m_resources->subtractLipids(lipid - m_resources->getLipids());
-        m_resources->subtractProteins(pro - m_resources->getProteins());
-        m_resources->subtractVitamins(vit - m_resources->getVitamins());
+        // 获取种植成本（需在AlgaeType中新增获取成本的方法）
+        double carbCost, lipidCost, proCost, vitCost;
+        AlgaeType::getPlantingCost(m_selectedAlgaeType, carbCost, lipidCost, proCost, vitCost);
 
-        // Update production rates
+        // 扣除资源（使用成本值而非剩余值）
+        m_resources->subtractCarbohydrates(carbCost);
+        m_resources->subtractLipids(lipidCost);
+        m_resources->subtractProteins(proCost);
+        m_resources->subtractVitamins(vitCost);
+
         updateProductionRates();
-
         return true;
     }
 
-    return false;
+    return false; // 新增：处理种植失败的情况
 }
 
 bool AlgaeGame::removeAlgae(int row, int col) {
@@ -121,26 +124,12 @@ void AlgaeGame::setSoundEffectsVolume(int volume) {
 }
 
 void AlgaeGame::update() {
-    if (!m_gameRunning) {
-        return;
-    }
-
-    // Calculate delta time
     qint64 currentTime = QDateTime::currentMSecsSinceEpoch();
-    double deltaTime = (currentTime - m_lastUpdateTime) / 1000.0; // Convert to seconds
+    if (m_lastUpdateTime == 0) m_lastUpdateTime = currentTime;
+    double deltaTime = (currentTime - m_lastUpdateTime) / 1000.0; // 转换为秒
     m_lastUpdateTime = currentTime;
 
-    // Update grid (which updates all cells)
-    m_grid->update(deltaTime);
-
-    // Update resources based on production rates
-    m_resources->update(deltaTime);
-
-    // Check win condition
-    if (m_resources->checkWinCondition()) {
-        pauseGame();
-        emit gameWon();
-    }
+    m_grid->update(deltaTime);  // 正确传递deltaTime
 }
 
 void AlgaeGame::updateProductionRates() {

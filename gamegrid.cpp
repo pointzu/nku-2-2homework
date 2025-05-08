@@ -1,7 +1,8 @@
 #include "gamegrid.h"
 #include <QRandomGenerator>
+#include <QPainter> // Add this line
 
-GameGrid::GameGrid(QObject* parent) : QObject(parent) {
+GameGrid::GameGrid(QWidget* parent) : QWidget(parent) {
     initializeGrid();
     initializeResources();
 }
@@ -92,25 +93,18 @@ void GameGrid::reset() {
 int GameGrid::calculateShadingAt(int row, int col) const {
     int totalShading = 0;
 
-    // Check all cells above for shading effects
+    // 仅检查当前列的上方行（同一列的藻类遮荫影响更直接）
     for (int r = 0; r < row; ++r) {
-        for (int c = 0; c < COLS; ++c) {
-            AlgaeCell* cell = m_cells[r][c];
+        AlgaeCell* cell = m_cells[r][col];  // 仅当前列
 
-            if (cell->isOccupied()) {
-                AlgaeType::Properties props = AlgaeType::getProperties(cell->getType());
+        if (cell->isOccupied()) {
+            AlgaeType::Properties props = AlgaeType::getProperties(cell->getType());
+            int distanceRows = row - r;
 
-                // Calculate distance from shading cell to target cell
-                int distanceRows = row - r;
-
-                // Apply shading if within shading depth
-                if (distanceRows <= props.shadingDepth) {
-                    totalShading += props.shadingAmount;
-
-                    // Special rule for Type A: extra shading
-                    if (cell->getType() == AlgaeType::TYPE_A) {
-                        totalShading += 3; // Extra shading from Type A
-                    }
+            if (distanceRows <= props.shadingDepth) {
+                totalShading += props.shadingAmount;
+                if (cell->getType() == AlgaeType::TYPE_A) {  // 类型A额外遮荫
+                    totalShading += 3;
                 }
             }
         }
@@ -264,4 +258,49 @@ void GameGrid::calculateSpecialEffects() {
             }
         }
     }
+}
+
+void GameGrid::mouseMoveEvent(QMouseEvent* event) {
+    // 计算悬停的行列（修正 Qt 6 弃用 API）
+    int cellWidth = width() / COLS;
+    int cellHeight = height() / ROWS;
+    // 使用 position() 获取坐标并转换为整数
+    m_hoverCol = static_cast<int>(event->position().x()) / cellWidth;
+    m_hoverRow = static_cast<int>(event->position().y()) / cellHeight;
+     QWidget::update(); // 触发 QWidget 的重绘方法（无参数）
+    QWidget::mouseMoveEvent(event);
+}
+
+void GameGrid::paintEvent(QPaintEvent* event) {
+    QPainter painter(this);
+    // 绘制网格（示例逻辑）
+    for (int row = 0; row < ROWS; ++row) {
+        for (int col = 0; col < COLS; ++col) {
+            AlgaeCell* cell = getCell(row, col);
+            if (cell) {
+                cell->paint(&painter, CELL_SIZE); // 使用修改后的 paint 函数
+            }
+        }
+    }
+
+    // 绘制遮光区域（半透明灰色覆盖）
+    for (int row = 0; row < ROWS; ++row) {
+        for (int col = 0; col < COLS; ++col) {
+            int shading = calculateShadingAt(row, col);
+            if (shading > 0) {
+                int alpha = qMin(shading * 8, 200);
+                painter.setBrush(QColor(0, 0, 0, alpha));
+                painter.drawRect(col * CELL_SIZE, row * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+            }
+        }
+    }
+
+    // 绘制悬浮高亮（半透明绿色矩形）
+    if (m_hoverRow != -1 && m_hoverCol != -1) {
+        painter.setPen(Qt::NoPen);
+        painter.setBrush(QColor(0, 255, 0, 80));
+        painter.drawRect(m_hoverCol * CELL_SIZE, m_hoverRow * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+    }
+
+    QWidget::paintEvent(event);
 }

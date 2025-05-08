@@ -1,4 +1,5 @@
 #include "mainwindow.h"
+#include <QApplication>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QGroupBox>
@@ -18,20 +19,23 @@
 #include <QSettings>
 
 // CellWidget Implementation
+// 保留其中一个构造函数定义，删除另一个重复的
 CellWidget::CellWidget(int row, int col, QWidget* parent)
     : QWidget(parent)
     , m_row(row)
     , m_col(col)
     , m_algaeType(AlgaeType::NONE)
-    , m_status(AlgaeCell::NORMAL)
-{
+    , m_status(AlgaeCell::NORMAL) {
     setMinimumSize(50, 50);
     setMaximumSize(80, 80);
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     setMouseTracking(true);
     setFocusPolicy(Qt::StrongFocus);
-    void MainWindow::onGameWon() {
-        // Stop the game
+}
+
+// MainWindow 成员函数（独立定义）
+void MainWindow::onGameWon() {
+    // Stop the game
         m_game->pauseGame();
 
         // Play win sound
@@ -229,7 +233,7 @@ CellWidget::CellWidget(int row, int col, QWidget* parent)
             m_game->startGame();
         }
     }
-}
+
 
 void CellWidget::setAlgaeType(AlgaeType::Type type) {
     if (m_algaeType != type) {
@@ -523,7 +527,7 @@ void MainWindow::setupUI() {
                                       "遮光效果: 下方1格, -5\n"
                                       "消耗: N×1/秒, C×8/秒\n"
                                       "产出: 糖×5/秒, 蛋白×2/秒\n"
-                                      "特性: 同类相邻减产"
+                                      "特性: 同类相邻减排"
                                       ), infoA);
     infoALayout->addWidget(lblInfoA);
     controlLayout->addWidget(infoA);
@@ -549,7 +553,7 @@ void MainWindow::setupUI() {
                                       "遮光效果: 无\n"
                                       "消耗: N×2/秒, C×12/秒\n"
                                       "产出: 糖×3/秒, 蛋白×3/秒, 维生素×5/秒\n"
-                                      "特性: 与B连接时糖减产"
+                                      "特性: 与B连接时糖减排"
                                       ), infoC);
     infoCLayout->addWidget(lblInfoC);
     controlLayout->addWidget(infoC);
@@ -592,6 +596,7 @@ void MainWindow::initializeCellWidgets() {
             connect(cellWidget, &CellWidget::hovered, this, &MainWindow::displayCellInfo);
         }
     }
+// Remove any extra '}' here (line 236)
 }
 
 void MainWindow::setupGameGrid() {
