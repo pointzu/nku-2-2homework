@@ -1,20 +1,18 @@
 #ifndef GAMEGRID_H
 #define GAMEGRID_H
 
-#include <QWidget>  // Changed from QObject to QWidget
+#include <QObject>
 #include <QVector>
 #include "algaecell.h"
-#include <QMouseEvent>  // Added for QMouseEvent
-#include <QPaintEvent>  // Added for QPaintEvent
 
-class GameGrid : public QWidget {  // Changed base class to QWidget
+class GameGrid : public QObject {
     Q_OBJECT
 
 public:
     static const int ROWS = 10;
     static const int COLS = 8;
 
-    explicit GameGrid(QWidget* parent = nullptr);  // Changed parent type to QWidget*
+    explicit GameGrid(QObject* parent = nullptr);
     ~GameGrid();
 
     // Cell access
@@ -58,14 +56,6 @@ private:
     void initializeResources();
     void updateResources(double deltaTime);
     void calculateSpecialEffects();
-
-protected:
-    int m_hoverRow = -1;  // 当前悬停行（初始无效）
-    int m_hoverCol = -1;  // 当前悬停列（初始无效）
-    const int CELL_SIZE = 64;  // 假设单元格尺寸为64x64像素
-protected:
-    void mouseMoveEvent(QMouseEvent* event) override;  // Valid override for QWidget
-    void paintEvent(QPaintEvent* event) override;  // Added paintEvent override
 };
 
 #endif // GAMEGRID_H
