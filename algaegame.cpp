@@ -85,33 +85,31 @@ bool AlgaeGame::plantAlgae(int row, int col) {
     if (!m_isGameRunning || m_selectedAlgaeType == AlgaeType::NONE) {
         return false;
     }
-
-    // Check if we can afford to plant
     double carb = m_resources->getCarbohydrates();
     double lipid = m_resources->getLipids();
     double pro = m_resources->getProteins();
     double vit = m_resources->getVitamins();
-
-    if (!AlgaeType::canAfford(m_selectedAlgaeType, carb, lipid, pro, vit)) {
+    double light = m_grid->getLightAt(row);
+    bool canAfford = AlgaeType::canAfford(m_selectedAlgaeType, carb, lipid, pro, vit);
+    bool canReserve = true; // 允许预定
+    AlgaeCell* cell = m_grid->getCell(row, col);
+    if (cell) {
+        AlgaeCell::PlantResult result = cell->plant(m_selectedAlgaeType, light, canAfford, canReserve);
+        m_lastPlantResult = result;
+        if (result == AlgaeCell::PLANT_SUCCESS) {
+            // 扣除资源
+            AlgaeType::deductPlantingCost(m_selectedAlgaeType, carb, lipid, pro, vit);
+            m_resources->subtractCarbohydrates(carb - m_resources->getCarbohydrates());
+            m_resources->subtractLipids(lipid - m_resources->getLipids());
+            m_resources->subtractProteins(pro - m_resources->getProteins());
+            m_resources->subtractVitamins(vit - m_resources->getVitamins());
+            updateProductionRates();
+            return true;
+        }
+        // 其他情况不扣资源
+        updateProductionRates();
         return false;
     }
-
-    // Try to plant
-    AlgaeCell* cell = m_grid->getCell(row, col);
-    if (cell && cell->plant(m_selectedAlgaeType)) {
-        // Deduct resources
-        AlgaeType::deductPlantingCost(m_selectedAlgaeType, carb, lipid, pro, vit);
-        m_resources->subtractCarbohydrates(carb - m_resources->getCarbohydrates());
-        m_resources->subtractLipids(lipid - m_resources->getLipids());
-        m_resources->subtractProteins(pro - m_resources->getProteins());
-        m_resources->subtractVitamins(vit - m_resources->getVitamins());
-
-        // Update production rates
-        updateProductionRates();
-
-        return true;
-    }
-
     return false;
 }
 
@@ -143,23 +141,21 @@ void AlgaeGame::update() {
     if (!m_isGameRunning) {
         return;
     }
-
     // 计算时间增量
     qint64 currentTime = QDateTime::currentMSecsSinceEpoch();
     double deltaTime = (currentTime - m_lastUpdateTime) / 1000.0; // 转换为秒
     m_lastUpdateTime = currentTime;
-
     // 更新网格（更新所有单元格）
     m_grid->update(deltaTime);
-
     // 根据生产速率更新资源
     m_resources->update(deltaTime);
-
     // 检查胜利条件
     if (m_resources->checkWinCondition()) {
-        // pauseGame(); // 不再自动暂停
         emit gameWon();
     }
+    // 新增：每帧刷新UI网格和胜利条件栏
+    emit m_grid->gridUpdated();
+    emit m_resources->resourcesChanged();
 }
 
 void AlgaeGame::updateProductionRates() {

@@ -1,7 +1,7 @@
 #include "gamegrid.h"
 #include <QRandomGenerator>
 #include <QApplication>
-
+#include"mainwindow.h"
 GameGrid::GameGrid(QWidget* parent)
     : QWidget(parent)
     , m_layout(new QGridLayout(this))
@@ -34,8 +34,10 @@ void GameGrid::createCells()
             AlgaeCell* cell = new AlgaeCell(row, col, this);
             m_cells[row][col] = cell;
             m_layout->addWidget(cell, row, col);
-            connect(cell, &AlgaeCell::cellClicked, this, &GameGrid::onCellClicked);
-            connect(cell, &AlgaeCell::cellHovered, this, &GameGrid::onCellHovered);
+            if (cell) {
+                connect(cell, &AlgaeCell::cellClicked, this, &GameGrid::onCellClicked);
+                connect(cell, &AlgaeCell::cellHovered, this, &GameGrid::onCellHovered);
+            }
         }
     }
 }
@@ -78,7 +80,7 @@ void GameGrid::updateCursor()
 void GameGrid::showShadingArea(int row, int col, bool show)
 {
     if (row >= 0 && row < m_rows && col >= 0 && col < m_cols) {
-        AlgaeCell* cell = m_cells[row][col];
+        AlgaeCell* cell = getCell(row, col);
         if (cell) {
             cell->showShadingArea(show);
         }
@@ -96,6 +98,12 @@ void GameGrid::updateShadingAreas()
         }
     }
 
+    // 只有主窗口允许预览时才显示遮荫区
+    MainWindow* mw = nullptr;
+    QWidget* w = parentWidget();
+    while (w && !mw) { mw = qobject_cast<MainWindow*>(w); w = w->parentWidget(); }
+    if (!mw || !mw->isShadingPreviewEnabled()) return;
+
     // 如果有选中的藻类类型，显示遮荫区域
     if (m_selectedAlgaeType != AlgaeType::NONE) {
         AlgaeType::Properties props = AlgaeType::getProperties(m_selectedAlgaeType);
@@ -107,8 +115,9 @@ void GameGrid::updateShadingAreas()
                          r <= qMin(m_rows - 1, row + props.shadingDepth); ++r) {
                         for (int c = qMax(0, col - props.shadingDepth);
                              c <= qMin(m_cols - 1, col + props.shadingDepth); ++c) {
-                            if (m_cells[r][c]) {
-                                m_cells[r][c]->showShadingArea(true);
+                            AlgaeCell* cell = getCell(r, c);
+                            if (cell) {
+                                cell->showShadingArea(true);
                             }
                         }
                     }
@@ -120,12 +129,14 @@ void GameGrid::updateShadingAreas()
 
 void GameGrid::onCellClicked(int row, int col)
 {
-    emit cellClicked(row, col);
+    if (getCell(row, col))
+        emit cellClicked(row, col);
 }
 
 void GameGrid::onCellHovered(int row, int col, bool entered)
 {
-    emit cellHovered(row, col, entered);
+    if (getCell(row, col))
+        emit cellHovered(row, col, entered);
     updateShadingAreas();
 }
 
@@ -135,16 +146,22 @@ GameGrid::~GameGrid() {
 
 AlgaeCell* GameGrid::getCell(int row, int col) const {
     if (row >= 0 && row < m_rows && col >= 0 && col < m_cols) {
-        return m_cells[row][col];
+        if (m_cells[row][col])
+            return m_cells[row][col];
     }
     return nullptr;
 }
 
-double GameGrid::getLightAt(int row) const {
-    if (row >= 0 && row < m_rows) {
-        return m_baseLight[row] - calculateShadingAt(row, 0);
+double GameGrid::getLightAt(int row, int col) const {
+    if (row >= 0 && row < m_rows && col >= 0 && col < m_cols) {
+        return m_baseLight[row] - calculateShadingAt(row, col);
     }
     return 0.0;
+}
+
+double GameGrid::getLightAt(int row) const {
+    // 默认取第0列，兼容旧接口
+    return getLightAt(row, 0);
 }
 
 double GameGrid::getNitrogenAt(int row, int col) const {
@@ -261,31 +278,20 @@ void GameGrid::reset() {
 
 int GameGrid::calculateShadingAt(int row, int col) const {
     int totalShading = 0;
-
-    // Check all cells above for shading effects
+    // 只考虑本列上方的遮荫
     for (int r = 0; r < row; ++r) {
-        for (int c = 0; c < m_cols; ++c) {
-            AlgaeCell* cell = m_cells[r][c];
-
-            if (cell->isOccupied()) {
-                AlgaeType::Properties props = AlgaeType::getProperties(cell->getType());
-
-                // Calculate distance from shading cell to target cell
-                int distanceRows = row - r;
-
-                // Apply shading if within shading depth
-                if (distanceRows <= props.shadingDepth) {
-                    totalShading += props.shadingAmount;
-
-                    // Special rule for Type A: extra shading
-                    if (cell->getType() == AlgaeType::TYPE_A) {
-                        totalShading += 3; // Extra shading from Type A
-                    }
+        AlgaeCell* cell = m_cells[r][col];
+        if (cell->isOccupied()) {
+            AlgaeType::Properties props = AlgaeType::getProperties(cell->getType());
+            int distanceRows = row - r;
+            if (distanceRows <= props.shadingDepth) {
+                totalShading += props.shadingAmount;
+                if (cell->getType() == AlgaeType::TYPE_A) {
+                    totalShading += 3;
                 }
             }
         }
     }
-
     return totalShading;
 }
 
@@ -330,18 +336,18 @@ void GameGrid::initializeGrid() {
 }
 
 void GameGrid::initializeResources() {
-    // Initialize light levels (decreasing from top to bottom, then constant)
+    // 更陡峭的光照梯度（顶部到下方）
     m_baseLight.resize(m_rows);
-    m_baseLight[0] = 100;
-    m_baseLight[1] = 76;
-    m_baseLight[2] = 58;
-    m_baseLight[3] = 44;
-    m_baseLight[4] = 34;
-    m_baseLight[5] = 26;
-    m_baseLight[6] = 20;
-    m_baseLight[7] = 15;
-    m_baseLight[8] = 15;
-    m_baseLight[9] = 15;
+    m_baseLight[0] = 30;
+    m_baseLight[1] = 28;
+    m_baseLight[2] = 26;
+    m_baseLight[3] = 24;
+    m_baseLight[4] = 22;
+    m_baseLight[5] = 20;
+    m_baseLight[6] = 18;
+    m_baseLight[7] = 16;
+    m_baseLight[8] = 14;
+    m_baseLight[9] = 12;
 
     // Initialize nitrogen and carbon with random values
     m_nitrogen.resize(m_rows);
@@ -434,4 +440,18 @@ void GameGrid::calculateSpecialEffects() {
             }
         }
     }
+}
+
+double GameGrid::getLightAtIfPlanted(int row, int col, AlgaeType::Type type) const {
+    int simulatedShading = calculateShadingAt(row, col);
+    if (type != AlgaeType::NONE) {
+        AlgaeType::Properties props = AlgaeType::getProperties(type);
+        for (int d = 1; d <= props.shadingDepth; ++d) {
+            int targetRow = row + d;
+            if (targetRow < m_rows) {
+                simulatedShading += props.shadingAmount;
+            }
+        }
+    }
+    return m_baseLight[row] - simulatedShading;
 }

@@ -3,5 +3,12 @@
         <file>../resources/st30f0n665joahrrvuj05fechvwkcv10/type_a.png</file>
         <file>../resources/st30f0n665joahrrvuj05fechvwkcv10/type_b.png</file>
         <file>../resources/st30f0n665joahrrvuj05fechvwkcv10/type_c.png</file>
+        <file>../resources/st30f0n665joahrrvuj05fechvwkcv10/background_music1.wav</file>
+        <file>../resources/st30f0n665joahrrvuj05fechvwkcv10/background_music2.wav</file>
+        <file>../resources/st30f0n665joahrrvuj05fechvwkcv10/planted.wav</file>
+        <file>../resources/st30f0n665joahrrvuj05fechvwkcv10/victory.wav</file>
+        <file>../resources/sounds/buzzer.wav</file>
+        <file>../resources/sounds/displant.wav</file>
+        <file>../resources/sounds/pause.wav</file>
     </qresource>
 </RCC>

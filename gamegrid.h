@@ -34,6 +34,7 @@ public:
 
     // Light and resources
     double getLightAt(int row) const;
+    double getLightAt(int row, int col) const;
     double getNitrogenAt(int row, int col) const;
     double getCarbonAt(int row, int col) const;
     double getNitrogenRegenRate(int row, int col) const;
@@ -42,6 +43,9 @@ public:
     // Calculate combined effects
     int calculateShadingAt(int row, int col) const;
     void applyRemoveBonus(int row, int col);
+
+    // 新增：悬浮预判种植后光照
+    double getLightAtIfPlanted(int row, int col, AlgaeType::Type type) const;
 
 signals:
     void cellChanged(int row, int col);

@@ -1,53 +1,106 @@
-#include "algaecell.h"
-#include "gamegrid.h"
-#include <QPainter>
-#include <QMouseEvent>
+#include "algaecell.h" // 引入藻类单元格头文件
+#include "gamegrid.h"  // 引入网格头文件
+#include "mainwindow.h" // 引入主窗口头文件
+#include <QPainter>    // Qt绘图类
+#include <QMouseEvent> // Qt鼠标事件
+#include <QToolTip>    // Qt提示框
+#include <QMediaPlayer>
+#include <QAudioOutput>
+#include <QDebug>
+#include <QFile>
 
+// 藻类单元格构造函数
 AlgaeCell::AlgaeCell(int row, int col, GameGrid* parent)
-    : QWidget(parent)
-    , m_row(row)
-    , m_col(col)
-    , m_grid(parent)
-    , m_type(AlgaeType::NONE)
-    , m_status(NORMAL)
-    , m_productionMultiplier(1.0)
-    , m_timeSinceLightLow(0.0)
-    , m_isHovered(false)
-    , m_isSelected(false)
-    , m_showShadingArea(false)
-    , m_carbProduction(0.0)
-    , m_lipidProduction(0.0)
-    , m_proProduction(0.0)
-    , m_vitProduction(0.0)
+    : QWidget(parent) // 继承QWidget
+    , m_row(row)      // 行号
+    , m_col(col)      // 列号
+    , m_grid(parent)  // 所属网格
+    , m_type(AlgaeType::NONE) // 初始无藻类
+    , m_status(NORMAL)        // 初始状态正常
+    , m_productionMultiplier(1.0) // 生产倍率
+    , m_timeSinceLightLow(0.0)    // 光照低计时
+    , m_isHovered(false)          // 是否悬浮
+    , m_isSelected(false)         // 是否选中
+    , m_showShadingArea(false)    // 是否显示遮荫区
+    , m_carbProduction(0.0)       // 糖产量
+    , m_lipidProduction(0.0)      // 脂产量
+    , m_proProduction(0.0)        // 蛋白产量
+    , m_vitProduction(0.0)        // 维生素产量
+    , m_player(nullptr)
+    , m_audioOutput(nullptr)
 {
-    setMouseTracking(true);
-    setMinimumSize(60, 60);
-    m_properties = AlgaeType::getProperties(m_type);
+    setMouseTracking(true); // 启用鼠标跟踪
+    setMinimumSize(60, 60); // 最小尺寸
+    m_properties = AlgaeType::getProperties(m_type); // 获取属性
+    m_player = new QMediaPlayer(this);
+    m_audioOutput = new QAudioOutput(this);
+    m_player->setAudioOutput(m_audioOutput);
+    m_audioOutput->setVolume(1.0); // 1.0为最大音量，0.0为静音
 }
 
+// 析构函数
 AlgaeCell::~AlgaeCell() {
 }
 
-bool AlgaeCell::plant(AlgaeType::Type type) {
+// 种植结果枚举
+enum PlantResult {
+    PLANT_SUCCESS,           // 种植成功
+    PLANT_OCCUPIED,          // 已被占用
+    PLANT_LIGHT_LOW,         // 光照略低
+    PLANT_LIGHT_INSUFFICIENT,// 光照不足
+    PLANT_RESOURCE_LOW,      // 资源不足
+    PLANT_RESERVED           // 资源预定
+};
+
+// 种植函数
+AlgaeCell::PlantResult AlgaeCell::plant(AlgaeType::Type type, double lightLevel, bool canAfford, bool canReserve) {
     if (isOccupied()) {
-        return false;
+        playSound("qrc:/sounds/buzzer.wav");
+        return AlgaeCell::PLANT_OCCUPIED;
     }
-    double lightLevel = m_grid->getLightAt(m_row);
-    AlgaeType::Properties props = AlgaeType::getProperties(type);
-    if (lightLevel < props.lightRequiredPlant) {
-        return false;
+    AlgaeType::Properties props = AlgaeType::getProperties(type); // 获取属性
+    if (lightLevel < props.lightRequiredPlant) { // 光照不足
+        if (lightLevel >= props.lightRequiredMaintain) { // 允许缓慢生长
+            m_type = type;
+            m_properties = props;
+            m_status = LIGHT_LOW;
+            m_productionMultiplier = 0.5;
+            m_timeSinceLightLow = 0.0;
+            emit cellChanged();
+            return AlgaeCell::PLANT_LIGHT_LOW;
+        } else { // 完全不能种植
+            emit cellChanged();
+            return AlgaeCell::PLANT_LIGHT_INSUFFICIENT;
+        }
     }
+    if (!canAfford) {
+        if (canReserve) {
+            playSound("qrc:/sounds/buzzer.wav");
+            m_type = type;
+            m_properties = props;
+            m_status = RESOURCE_LOW;
+            m_productionMultiplier = 0.0;
+            emit cellChanged();
+            return AlgaeCell::PLANT_RESERVED;
+        } else {
+            playSound("qrc:/sounds/buzzer.wav");
+            return AlgaeCell::PLANT_RESOURCE_LOW;
+        }
+    }
+    // 正常种植
     m_type = type;
     m_properties = props;
     m_status = NORMAL;
     m_productionMultiplier = 1.0;
     m_timeSinceLightLow = 0.0;
     emit cellChanged();
-    return true;
+    playSound("qrc:/../resources/st30f0n665joahrrvuj05fechvwkcv10/planted.wav");
+    return AlgaeCell::PLANT_SUCCESS;
 }
 
 void AlgaeCell::remove() {
     if (isOccupied()) {
+        playSound("qrc:/sounds/displant.wav");
         m_type = AlgaeType::NONE;
         m_properties = AlgaeType::getProperties(m_type);
         m_status = NORMAL;
@@ -104,7 +157,6 @@ void AlgaeCell::paintEvent(QPaintEvent* event)
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing);
 
-    // 绘制单元格背景
     QRect cellRect = rect();
     painter.fillRect(cellRect, QColor(240, 240, 240));
 
@@ -123,7 +175,6 @@ void AlgaeCell::paintEvent(QPaintEvent* event)
         } else if (m_isHovered) {
             imagePath = m_properties.hoverImagePath;
         }
-
         QPixmap pixmap(imagePath);
         if (!pixmap.isNull()) {
             painter.drawPixmap(cellRect, pixmap);
@@ -135,13 +186,13 @@ void AlgaeCell::paintEvent(QPaintEvent* event)
         QColor statusColor;
         switch (m_status) {
             case RESOURCE_LOW:
-                statusColor = QColor(255, 165, 0); // 橙色
+                statusColor = QColor(255, 165, 0);
                 break;
             case LIGHT_LOW:
-                statusColor = QColor(255, 0, 0);   // 红色
+                statusColor = QColor(255, 0, 0);
                 break;
             case DYING:
-                statusColor = QColor(128, 0, 0);   // 深红色
+                statusColor = QColor(128, 0, 0);
                 break;
             default:
                 break;
@@ -152,10 +203,10 @@ void AlgaeCell::paintEvent(QPaintEvent* event)
 
     // 悬浮高亮
     if (m_isHovered) {
-        QColor hoverColor = QColor(255, 255, 0, 120); // 更亮的黄色
+        QColor hoverColor = QColor(255, 255, 0, 120);
         painter.setPen(QPen(hoverColor, 5, Qt::SolidLine));
         painter.drawRect(cellRect.adjusted(2, 2, -2, -2));
-        QColor fillColor = QColor(255, 255, 180, 80); // 明显的半透明色块
+        QColor fillColor = QColor(255, 255, 180, 80);
         painter.fillRect(cellRect.adjusted(6, 6, -6, -6), fillColor);
     }
 }
@@ -163,19 +214,20 @@ void AlgaeCell::paintEvent(QPaintEvent* event)
 void AlgaeCell::enterEvent(QEnterEvent* event)
 {
     setHovered(true);
-   QWidget::update();
+    QWidget::update();
     QWidget::enterEvent(event);
 }
 
 void AlgaeCell::leaveEvent(QEvent* event)
 {
     setHovered(false);
-   QWidget::update();
+    QWidget::update();
     QWidget::leaveEvent(event);
 }
 
 void AlgaeCell::mousePressEvent(QMouseEvent* event)
 {
+    if (!m_grid) return;
     if (event->button() == Qt::LeftButton) {
         emit cellClicked(m_row, m_col);
     }
@@ -229,7 +281,7 @@ void AlgaeCell::updateStatus() {
     if (!isOccupied()) {
         return;
     }
-    double currentLight = m_grid->getLightAt(m_row);
+    double currentLight = m_grid->getLightAt(m_row, m_col);
     AlgaeType::Properties props = AlgaeType::getProperties(m_type);
     Status newStatus = NORMAL;
     if (currentLight < props.lightRequiredSurvive) {
@@ -264,4 +316,12 @@ void AlgaeCell::checkSpecialRules() {
             emit algaeDied();
         }
     }
+}
+
+void AlgaeCell::playSound(const QString& resourcePath) {
+    m_player->stop();
+    m_player->setSource(QUrl(resourcePath));
+    m_audioOutput->setVolume(1.0);
+    m_player->play();
+    qDebug() << "播放音效:" << resourcePath << "状态:" << m_player->error() << m_player->errorString();
 }

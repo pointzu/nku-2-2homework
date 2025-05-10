@@ -20,12 +20,24 @@
 #include <QPixmap>
 #include <QCursor>
 #include<QPainterPath>
+#include <QtMultimedia/QMediaPlayer>
+#include <QtMultimedia/QAudioOutput>
+#include <QDebug>
+#include <QSoundEffect>
+#include <QMap>
+#include <QTemporaryFile>
+#include <QFile>
+#include <QStandardPaths>
+#include <QDir>
+#include <QUrl>
+
 // CellWidget Implementation
 void MainWindow::onGameWon() {
     if (m_hasShownWinMsg) {
         return;
     }
     m_hasShownWinMsg = true;
+    playEffect("victory.wav");
     // 评分计算
     double carb = m_game->getResources()->getCarbohydrates();
     double lipid = m_game->getResources()->getLipids();
@@ -70,14 +82,29 @@ void MainWindow::keyPressEvent(QKeyEvent *event) {
         showGameMenu();
         unsetCursor(); // 恢复默认指针
     }
-
+    if (event->key() == Qt::Key_Shift || event->key() == Qt::Key_Space) {
+        if (!m_showShadingPreview) {
+            m_showShadingPreview = true;
+            updateGridDisplay();
+        }
+    }
     QMainWindow::keyPressEvent(event);
 }
 
+void MainWindow::keyReleaseEvent(QKeyEvent *event) {
+    if (event->key() == Qt::Key_Shift || event->key() == Qt::Key_Space) {
+        if (m_showShadingPreview) {
+            m_showShadingPreview = false;
+            updateGridDisplay();
+        }
+    }
+    QMainWindow::keyReleaseEvent(event);
+}
+
 void MainWindow::showGameMenu() {
-    // Pause the game
     bool wasRunning = m_game->isGameRunning();
     if (wasRunning) {
+        playEffect("pause.wav");
         m_game->pauseGame();
     }
 
@@ -256,19 +283,21 @@ void CellWidget::paintEvent(QPaintEvent* event) {
     painter.setRenderHint(QPainter::Antialiasing);
     int cellSize = qMin(width(), height()) - 4;
     QRect cellRect(width()/2 - cellSize/2, height()/2 - cellSize/2, cellSize, cellSize);
-    // 1. 蓝色渐变分层背景
-    int totalRows = 10; // 假设10行，可根据实际传入
-    int rowIdx = m_row;
-    double t = totalRows > 1 ? (double)rowIdx / (totalRows - 1) : 0.0;
-    QColor topColor = QColor(150, 210, 255, 120 + 40 * (1-t)); // 上层更亮
-    QColor bottomColor = QColor(10, 40, 120, 160 + 40 * t);    // 下层更深
+    // 蓝色渐变背景
+    QColor bgTop(40, 80, 180);
+    QColor bgBottom(10, 20, 60);
     QLinearGradient grad(rect().topLeft(), rect().bottomLeft());
-    grad.setColorAt(0.0, topColor);
-    grad.setColorAt(1.0, bottomColor);
+    grad.setColorAt(0.0, bgTop);
+    grad.setColorAt(1.0, bgBottom);
     painter.fillRect(rect(), grad);
     // 2. 光照渐变带（底部）
     if (m_cell) {
-        double light = m_cell->parentWidget() ? static_cast<GameGrid*>(m_cell->parentWidget())->getLightAt(m_row) : 0.0;
+        GameGrid* grid = nullptr;
+        if (m_cell->parentWidget()) {
+            grid = qobject_cast<GameGrid*>(m_cell->parentWidget());
+        }
+        double light = 0.0;
+        if (grid) light = grid->getLightAt(m_row);
         int lightBarH = 4;
         int lightBarW = width() - 8;
         QRect lightRect(4, height() - lightBarH - 2, lightBarW, lightBarH);
@@ -279,18 +308,21 @@ void CellWidget::paintEvent(QPaintEvent* event) {
         painter.setBrush(lightGrad);
         painter.setPen(Qt::NoPen);
         painter.drawRect(lightRect);
+        // 图标+文字
+        QPixmap iconL(":/icons/light.png");
+        if (!iconL.isNull()) painter.drawPixmap(lightRect.left(), lightRect.top()-2, 14, 14, iconL);
         painter.setPen(Qt::white);
         painter.setFont(QFont("Arial", 7));
-        painter.drawText(lightRect, Qt::AlignCenter, QString("光:%1").arg(lightVal));
+        painter.drawText(lightRect.adjusted(16,0,0,0), Qt::AlignLeft|Qt::AlignVCenter, QString("光:%1").arg(lightVal));
     }
     // 3. 遮光区可视化（半透明蓝灰，强度递减）
     if (m_cell && m_cell->isShadingVisible()) {
-        int depth = 1 + (m_row % 3); // 可根据实际遮光深度
-        int alpha = 40 + 30 * (depth-1); // 深度越大越深
+        int depth = 1 + (m_row % 3);
+        int alpha = 40 + 30 * (depth-1);
         QColor shadeColor = QColor(60, 80, 120, alpha);
         painter.fillRect(cellRect, shadeColor);
     }
-    // 4. 藻类图标（加阴影/发光描边）
+    // 4. 藻类图标更亮
     if (m_cell && m_cell->getType() != AlgaeType::NONE) {
         AlgaeType::Properties props = AlgaeType::getProperties(m_cell->getType());
         QPixmap pix(props.imagePath);
@@ -301,35 +333,107 @@ void CellWidget::paintEvent(QPaintEvent* event) {
             path.addRect(cellRect);
             painter.save();
             painter.setRenderHint(QPainter::Antialiasing, true);
-            // 阴影
             painter.setOpacity(0.4);
             painter.drawPixmap(cellRect.adjusted(2,2,2,2), shadow);
             painter.setOpacity(1.0);
-            // 图标本体
-            painter.drawPixmap(cellRect, pix.scaled(cellRect.size(), Qt::KeepAspectRatio, Qt::SmoothTransformation));
-            // 发光描边
-            QPen glowPen(QColor(180,220,255,180), 3);
+            QPixmap brightPix = pix.scaled(cellRect.size(), Qt::KeepAspectRatio, Qt::SmoothTransformation);
+            QImage brightImg = brightPix.toImage();
+            for(int y=0; y<brightImg.height(); ++y) for(int x=0; x<brightImg.width(); ++x) {
+                QColor c = brightImg.pixelColor(x,y);
+                c = c.lighter(130);
+                brightImg.setPixelColor(x,y,c);
+            }
+            painter.drawPixmap(cellRect, QPixmap::fromImage(brightImg));
+            QPen glowPen(QColor(220,240,255,220), 4);
             painter.setPen(glowPen);
             painter.drawRect(cellRect.adjusted(3,3,-3,-3));
             painter.restore();
         }
     }
-    // 5. 右下角小型数值标签（氮素/CO₂/光照）
-    if (m_cell) {
-        GameGrid* grid = m_cell->parentWidget() ? static_cast<GameGrid*>(m_cell->parentWidget()) : nullptr;
+    // 顶部中央：藻类状态（仅种植后显示）
+    if (m_cell && m_cell->isOccupied()) {
+        QString statusText;
+        QColor statusColor;
+        switch (m_cell->getStatus()) {
+            case AlgaeCell::NORMAL: statusText = "正常"; statusColor = QColor(0,255,0); break;
+            case AlgaeCell::RESOURCE_LOW: statusText = "资源低"; statusColor = QColor(255,165,0); break;
+            case AlgaeCell::LIGHT_LOW: statusText = "光照低"; statusColor = QColor(255,0,0); break;
+            case AlgaeCell::DYING: statusText = "濒死"; statusColor = QColor(255,0,128); break;
+        }
+        QFont font = painter.font();
+        font.setPointSize(11);
+        font.setBold(true);
+        painter.setFont(font);
+        painter.setPen(QPen(statusColor, 2));
+        QRect topRect(cellRect.left(), cellRect.top(), cellRect.width(), 22);
+        // 状态图标+文字
+        QPixmap iconS(":/icons/status.png");
+        if (!iconS.isNull()) painter.drawPixmap(topRect.left(), topRect.top()+2, 16, 16, iconS);
+        painter.drawText(topRect.adjusted(18,0,0,0), Qt::AlignLeft|Qt::AlignVCenter, statusText);
+    }
+    // 中央：未种植资源/可否种植标签（更显著）
+    if (m_cell && !m_cell->isOccupied()) {
+        GameGrid* grid = nullptr;
+        if (m_cell->parentWidget()) {
+            grid = qobject_cast<GameGrid*>(m_cell->parentWidget());
+        }
         if (grid) {
             double n = grid->getNitrogenAt(m_row, m_col);
             double c = grid->getCarbonAt(m_row, m_col);
-            double l = grid->getLightAt(m_row);
-            QString tag = QString("N:%1\nC:%2\nL:%3").arg((int)n).arg((int)c).arg((int)l);
-            QRect tagRect(width()-38, height()-32, 36, 30);
-            painter.setBrush(QColor(30,40,60,180));
-            painter.setPen(Qt::NoPen);
-            painter.drawRoundedRect(tagRect, 6, 6);
-            painter.setPen(Qt::white);
-            painter.setFont(QFont("Arial", 7));
-            painter.drawText(tagRect, Qt::AlignCenter, tag);
+            double l = 0.0;
+            AlgaeType::Type selType = AlgaeType::NONE;
+            MainWindow* mw = nullptr;
+            QWidget* w = grid->parentWidget();
+            while (w && !mw) { mw = qobject_cast<MainWindow*>(w); w = w->parentWidget(); }
+            if (mw) selType = mw->getGame()->getSelectedAlgaeType();
+            if (selType != AlgaeType::NONE && m_hovered) {
+                l = grid->getLightAtIfPlanted(m_row, m_col, selType);
+            } else {
+                l = grid->getLightAt(m_row);
+            }
+            // 图标+文字
+            QPixmap iconN(":/icons/nitrogen.png");
+            QPixmap iconC(":/icons/carbon.png");
+            QPixmap iconL(":/icons/light.png");
+            int iconY = cellRect.top()+cellRect.height()/2-18;
+            int iconX = cellRect.left()+12;
+            painter.drawPixmap(iconX, iconY, 14, 14, iconN);
+            painter.drawText(iconX+16, iconY+12, QString::number((int)n));
+            painter.drawPixmap(iconX+40, iconY, 14, 14, iconC);
+            painter.drawText(iconX+56, iconY+12, QString::number((int)c));
+            painter.drawPixmap(iconX+80, iconY, 14, 14, iconL);
+            painter.drawText(iconX+96, iconY+12, QString::number((int)l));
+            // 状态标签
+            QString statusTag;
+            QColor statusColor = Qt::white;
+            if (selType != AlgaeType::NONE) {
+                AlgaeType::Properties props = AlgaeType::getProperties(selType);
+                bool lightOK = l >= props.lightRequiredPlant;
+                bool resOK = AlgaeType::canAfford(selType, mw->getGame()->getResources()->getCarbohydrates(), mw->getGame()->getResources()->getLipids(), mw->getGame()->getResources()->getProteins(), mw->getGame()->getResources()->getVitamins());
+                if (!lightOK) { statusTag = "光照不足"; statusColor = QColor(255,0,0); }
+                else if (!resOK) { statusTag = "资源不足"; statusColor = QColor(255,165,0); }
+                else { statusTag = "可种植"; statusColor = QColor(0,255,0); }
+            }
+            QRect tagRect(cellRect.left()+8, cellRect.top()+cellRect.height()/2+8, cellRect.width()-16, 28);
+            if (!statusTag.isEmpty()) {
+                QFont font2("Arial", 14, QFont::Bold);
+                painter.setFont(font2);
+                painter.setPen(statusColor);
+                QColor bg = statusColor; bg.setAlpha(120);
+                painter.setBrush(bg);
+                painter.setPen(Qt::NoPen);
+                painter.drawRoundedRect(tagRect, 8, 8);
+                painter.setPen(statusColor.darker(180));
+                painter.drawText(tagRect, Qt::AlignCenter, statusTag);
+            }
         }
+    }
+    if (m_hovered) {
+        QColor hoverColor = QColor(255, 255, 0, 180);
+        painter.setPen(QPen(hoverColor, 6, Qt::SolidLine));
+        painter.drawRect(cellRect.adjusted(2, 2, -2, -2));
+        QColor fillColor = QColor(255, 255, 180, 100);
+        painter.fillRect(cellRect.adjusted(6, 6, -6, -6), fillColor);
     }
     painter.setPen(QPen(Qt::darkBlue, 1));
     painter.drawRect(rect().adjusted(0, 0, -1, -1));
@@ -339,44 +443,10 @@ void CellWidget::paintEvent(QPaintEvent* event) {
     painter.setFont(smallFont);
     painter.drawText(rect().adjusted(2, 2, -2, -2), Qt::AlignTop | Qt::AlignLeft,
                      QString::number(m_row) + "," + QString::number(m_col));
-    // 显示藻类图片
-    if (m_cell && m_cell->getType() != AlgaeType::NONE) {
-        AlgaeType::Properties props = AlgaeType::getProperties(m_cell->getType());
-        QPixmap pix(props.imagePath);
-        if (!pix.isNull()) {
-            painter.drawPixmap(cellRect, pix);
-        }
-    }
-    // 状态色块/边框
-    if (m_cell) {
-        QColor statusColor;
-        switch (m_cell->getStatus()) {
-            case AlgaeCell::NORMAL: statusColor = QColor(0, 200, 0, 80); break;
-            case AlgaeCell::RESOURCE_LOW: statusColor = QColor(255, 165, 0, 120); break;
-            case AlgaeCell::LIGHT_LOW: statusColor = QColor(255, 0, 0, 120); break;
-            case AlgaeCell::DYING: statusColor = QColor(128, 0, 0, 180); break;
-        }
-        painter.setPen(QPen(statusColor, 3));
-        painter.drawRect(cellRect.adjusted(2, 2, -2, -2));
-    }
-    // 状态文字
-    if (m_cell) {
-        QString statusText;
-        switch (m_cell->getStatus()) {
-            case AlgaeCell::NORMAL: statusText = "正常"; break;
-            case AlgaeCell::RESOURCE_LOW: statusText = "资源低"; break;
-            case AlgaeCell::LIGHT_LOW: statusText = "光照低"; break;
-            case AlgaeCell::DYING: statusText = "濒死"; break;
-        }
-        painter.setPen(Qt::black);
-        QFont font = painter.font();
-        font.setPointSize(8);
-        painter.setFont(font);
-        painter.drawText(cellRect, Qt::AlignBottom | Qt::AlignHCenter, statusText);
-    }
 }
 
 void CellWidget::mousePressEvent(QMouseEvent* event) {
+    if (!m_cell) return;
     if (event->button() == Qt::LeftButton) {
         emit leftClicked(m_row, m_col);
     } else if (event->button() == Qt::RightButton) {
@@ -386,7 +456,33 @@ void CellWidget::mousePressEvent(QMouseEvent* event) {
 
 void CellWidget::enterEvent(QEnterEvent* event) {
     Q_UNUSED(event);
+    m_hovered = true;
     emit hovered(m_row, m_col);
+    update();
+    GameGrid* grid = nullptr;
+    if (m_cell && m_cell->parentWidget()) {
+        grid = qobject_cast<GameGrid*>(m_cell->parentWidget());
+    }
+    if (grid) {
+        int shadeDepth = 2;
+        for (int d = 1; d <= shadeDepth; ++d) {
+            int r = m_row + d;
+            if (r < grid->getRows()) {
+                for (int c = m_col-1; c <= m_col+1; ++c) {
+                    if (c >= 0 && c < grid->getCols()) {
+                        AlgaeCell* cell = grid->getCell(r, c);
+                        if (cell) cell->QWidget::update();
+                    }
+                }
+            }
+        }
+    }
+}
+
+void CellWidget::leaveEvent(QEvent* event) {
+    m_hovered = false;
+    update();
+    QWidget::leaveEvent(event);
 }
 
 // MainWindow Implementation
@@ -411,6 +507,16 @@ MainWindow::MainWindow(QWidget *parent)
     m_cellsLayout = new QGridLayout();
     m_game = new AlgaeGame(this);
     m_gridLayout = new QGridLayout();
+    m_scoreLabel = new QLabel(this);
+    m_winConditionGroup = new QGroupBox(this);
+    m_lblCarbCond = new QLabel(this);
+    m_lblLipidCond = new QLabel(this);
+    m_lblProCond = new QLabel(this);
+    m_lblVitCond = new QLabel(this);
+    m_lblCarbRateCond = new QLabel(this);
+    m_lblLipidRateCond = new QLabel(this);
+    m_lblProRateCond = new QLabel(this);
+    m_lblVitRateCond = new QLabel(this);
     // 初始化鼠标指针
     QPixmap pixA(":/resources/st30f0n665joahrrvuj05fechvwkcv10/type_a.png");
     QPixmap pixB(":/resources/st30f0n665joahrrvuj05fechvwkcv10/type_b.png");
@@ -421,6 +527,17 @@ MainWindow::MainWindow(QWidget *parent)
     m_iconTypeA->setPixmap(pixA.scaled(24,24,Qt::KeepAspectRatio,Qt::SmoothTransformation));
     m_iconTypeB->setPixmap(pixB.scaled(24,24,Qt::KeepAspectRatio,Qt::SmoothTransformation));
     m_iconTypeC->setPixmap(pixC.scaled(24,24,Qt::KeepAspectRatio,Qt::SmoothTransformation));
+    m_bgmPlayer = new QMediaPlayer(this);
+    m_bgmAudio = new QAudioOutput(this);
+    m_bgmPlayer->setAudioOutput(m_bgmAudio);
+    m_bgmPlayer->setLoops(QMediaPlayer::Infinite);
+    m_bgmAudio->setVolume(1.0);
+    m_effectPlayer = new QMediaPlayer(this);
+    m_effectAudio = new QAudioOutput(this);
+    m_effectPlayer->setAudioOutput(m_effectAudio);
+    m_effectAudio->setVolume(1.0);
+    m_lastBgmProgress = -1.0;
+    m_soundEffects.clear();
     setupUI();
     setupGameGrid();
     setupGameControls();
@@ -430,10 +547,9 @@ MainWindow::MainWindow(QWidget *parent)
     initializeCellWidgets();
 
     setWindowTitle(tr("Algae - 水藻培养策略游戏"));
-    setMinimumSize(800, 600);
-    resize(1024, 768);
-
-    statusBar()->showMessage(tr("选择藻类并点击网格放置，右键可移除藻类"));
+    setMinimumSize(1024, 768);
+    showFullScreen(); // 启动全屏
+    restartGame(); // 启动自动重开一局
 }
 
 MainWindow::~MainWindow() {
@@ -447,28 +563,35 @@ void MainWindow::setupUI() {
     QHBoxLayout* mainLayout = new QHBoxLayout(central);
     mainLayout->setContentsMargins(10, 10, 10, 10);
     mainLayout->setSpacing(10);
+    central->setStyleSheet("background: #222;");
 
     // 左侧：资源、速率、进度、说明
     QWidget* leftPanel = new QWidget;
     QVBoxLayout* leftLayout = new QVBoxLayout(leftPanel);
     leftLayout->setSpacing(10);
+    leftPanel->setStyleSheet("background: #222;");
 
     // 进度条
     QGroupBox* progressGroup = new QGroupBox("通关进度");
+    QFont groupFont; groupFont.setBold(true); groupFont.setPointSize(12);
+    progressGroup->setFont(groupFont);
+    progressGroup->setStyleSheet("QGroupBox { color: #fff; font-size: 15px; font-weight: bold; border: 2px solid #444; border-radius: 10px; margin-top: 8px; background: rgba(40,40,40,0.8); }");
     QVBoxLayout* progressLayout = new QVBoxLayout(progressGroup);
-    m_progressBar->setMinimumHeight(24);
-    m_progressBar->setStyleSheet("QProgressBar {font-weight:bold;} QProgressBar::chunk {background:#4caf50;}");
+    m_progressBar->setMinimumHeight(28);
+    m_progressBar->setStyleSheet("QProgressBar { background: #e3f2fd; color: #222; font-weight: bold; border-radius: 8px; } QProgressBar::chunk { background: #4caf50; border-radius: 8px; }");
     progressLayout->addWidget(m_progressBar);
     leftLayout->addWidget(progressGroup);
 
     // 分数栏
-    m_scoreLabel = new QLabel("分数：0   最高分：0", this);
-    m_scoreLabel->setStyleSheet("font-weight:bold; color:#1976d2; font-size:15px; padding:2px 0 2px 0;");
+    m_scoreLabel->setStyleSheet("color: #1976d2; font-weight: bold; font-size: 20px; background: #e3f2fd; border-radius: 10px; padding: 6px;");
     leftLayout->addWidget(m_scoreLabel);
 
     // 资源
-    QGroupBox* resourceGroup = new QGroupBox("资源");
+    QGroupBox* resourceGroup = new QGroupBox("资源"); resourceGroup->setFont(groupFont);
+    resourceGroup->setStyleSheet("QGroupBox { color: #fff; font-size: 15px; font-weight: bold; border: 2px solid #444; border-radius: 10px; margin-top: 8px; background: rgba(40,40,40,0.8); }");
     QGridLayout* resourceLayout = new QGridLayout(resourceGroup);
+    auto styleRes = "color: #fff; font-weight:bold; font-size:16px; background: rgba(30,30,30,0.7); border-radius: 8px; padding: 4px;";
+    m_lblCarb->setStyleSheet(styleRes); m_lblLipid->setStyleSheet(styleRes); m_lblPro->setStyleSheet(styleRes); m_lblVit->setStyleSheet(styleRes);
     resourceLayout->addWidget(new QLabel("糖类:"), 0, 0);
     resourceLayout->addWidget(m_lblCarb, 0, 1);
     resourceLayout->addWidget(new QLabel("脂质:"), 1, 0);
@@ -480,8 +603,11 @@ void MainWindow::setupUI() {
     leftLayout->addWidget(resourceGroup);
 
     // 生产速率
-    QGroupBox* rateGroup = new QGroupBox("生产速率");
+    QGroupBox* rateGroup = new QGroupBox("生产速率"); rateGroup->setFont(groupFont);
+    rateGroup->setStyleSheet("QGroupBox { color: #fff; font-size: 15px; font-weight: bold; border: 2px solid #444; border-radius: 10px; margin-top: 8px; background: rgba(40,40,40,0.8); }");
     QGridLayout* rateLayout = new QGridLayout(rateGroup);
+    auto styleRate = "color: #b2ff59; font-weight:bold; font-size:15px; background: rgba(30,30,30,0.7); border-radius: 8px; padding: 4px;";
+    m_lblCarbRate->setStyleSheet(styleRate); m_lblLipidRate->setStyleSheet(styleRate); m_lblProRate->setStyleSheet(styleRate); m_lblVitRate->setStyleSheet(styleRate);
     rateLayout->addWidget(new QLabel("糖类/秒:"), 0, 0);
     rateLayout->addWidget(m_lblCarbRate, 0, 1);
     rateLayout->addWidget(new QLabel("脂质/秒:"), 1, 0);
@@ -493,36 +619,33 @@ void MainWindow::setupUI() {
     leftLayout->addWidget(rateGroup);
 
     // 胜利条件分组
-    m_winConditionGroup = new QGroupBox("胜利条件");
-    QVBoxLayout* winCondLayout = new QVBoxLayout(m_winConditionGroup);
-    m_lblCarbCond = new QLabel();
-    m_lblLipidCond = new QLabel();
-    m_lblProCond = new QLabel();
-    m_lblVitCond = new QLabel();
-    m_lblCarbRateCond = new QLabel();
-    m_lblLipidRateCond = new QLabel();
-    m_lblProRateCond = new QLabel();
-    m_lblVitRateCond = new QLabel();
-    winCondLayout->addWidget(m_lblCarbCond);
-    winCondLayout->addWidget(m_lblLipidCond);
-    winCondLayout->addWidget(m_lblProCond);
-    winCondLayout->addWidget(m_lblVitCond);
-    winCondLayout->addWidget(m_lblCarbRateCond);
-    winCondLayout->addWidget(m_lblLipidRateCond);
-    winCondLayout->addWidget(m_lblProRateCond);
-    winCondLayout->addWidget(m_lblVitRateCond);
+    m_winConditionGroup->setFont(groupFont);
+    m_winConditionGroup->setStyleSheet("QGroupBox { color: #fff; font-size: 15px; font-weight: bold; border: 2px solid #444; border-radius: 10px; margin-top: 8px; background: rgba(40,40,40,0.8); }");
+    QFont condFont; condFont.setBold(true); condFont.setPointSize(11);
+    m_lblCarbCond->setFont(condFont); m_lblLipidCond->setFont(condFont); m_lblProCond->setFont(condFont); m_lblVitCond->setFont(condFont);
+    m_lblCarbRateCond->setFont(condFont); m_lblLipidRateCond->setFont(condFont); m_lblProRateCond->setFont(condFont); m_lblVitRateCond->setFont(condFont);
+    m_lblCarbCond->setStyleSheet("color:#fff;background:rgba(30,30,30,0.7);border-radius:6px;padding:2px 8px;");
+    m_lblLipidCond->setStyleSheet("color:#fff;background:rgba(30,30,30,0.7);border-radius:6px;padding:2px 8px;");
+    m_lblProCond->setStyleSheet("color:#fff;background:rgba(30,30,30,0.7);border-radius:6px;padding:2px 8px;");
+    m_lblVitCond->setStyleSheet("color:#fff;background:rgba(30,30,30,0.7);border-radius:6px;padding:2px 8px;");
+    m_lblCarbRateCond->setStyleSheet("color:#fff;background:rgba(30,30,30,0.7);border-radius:6px;padding:2px 8px;");
+    m_lblLipidRateCond->setStyleSheet("color:#fff;background:rgba(30,30,30,0.7);border-radius:6px;padding:2px 8px;");
+    m_lblProRateCond->setStyleSheet("color:#fff;background:rgba(30,30,30,0.7);border-radius:6px;padding:2px 8px;");
+    m_lblVitRateCond->setStyleSheet("color:#fff;background:rgba(30,30,30,0.7);border-radius:6px;padding:2px 8px;");
     leftLayout->addWidget(m_winConditionGroup);
 
     // 游戏说明
-    QGroupBox* infoGroup = new QGroupBox("游戏说明");
+    QGroupBox* infoGroup = new QGroupBox("游戏说明"); infoGroup->setFont(groupFont);
+    infoGroup->setStyleSheet("QGroupBox { color: #fff; font-size: 15px; font-weight: bold; border: 2px solid #444; border-radius: 10px; margin-top: 8px; background: rgba(40,40,40,0.8); }");
     QVBoxLayout* infoLayout = new QVBoxLayout(infoGroup);
     QLabel* infoLabel = new QLabel("- 左键放置选中藻类\n- 右键删除已有藻类\n- 鼠标悬浮可查看格子资源\n- ESC 打开菜单\n\n胜利条件:\n- 糖类储备 ≥ 500\n- 脂质储备 ≥ 300\n- 蛋白质储备 ≥ 200\n- 维生素储备 ≥ 100\n- 达到目标生产效率");
     infoLabel->setWordWrap(true);
+    infoLabel->setStyleSheet("font-size:14px; color:#fff; background:rgba(30,30,30,0.7); border-radius:8px; padding:4px;");
     infoLayout->addWidget(infoLabel);
     leftLayout->addWidget(infoGroup);
     leftLayout->addStretch(1);
 
-    // 中间：网格
+    // 中间：网格（自适应拉伸，最大化）
     QWidget* centerPanel = new QWidget;
     QVBoxLayout* centerLayout = new QVBoxLayout(centerPanel);
     centerLayout->setContentsMargins(0, 0, 0, 0);
@@ -530,80 +653,68 @@ void MainWindow::setupUI() {
     QFrame* gridFrame = new QFrame(centerPanel);
     gridFrame->setFrameShape(QFrame::StyledPanel);
     gridFrame->setFrameShadow(QFrame::Sunken);
-    m_cellsLayout->setSpacing(2);
-    m_cellsLayout->setContentsMargins(5, 5, 5, 5);
+    m_cellsLayout->setSpacing(4);
+    m_cellsLayout->setContentsMargins(10, 10, 10, 10);
     gridFrame->setLayout(m_cellsLayout);
-    centerLayout->addWidget(gridFrame);
+    centerLayout->addWidget(gridFrame, 1); // 拉伸填满
 
     // 右侧：藻类选择与说明
     QWidget* rightPanel = new QWidget;
     QVBoxLayout* rightLayout = new QVBoxLayout(rightPanel);
     rightLayout->setSpacing(10);
-    QGroupBox* controlGroup = new QGroupBox("藻类选择");
+    QGroupBox* controlGroup = new QGroupBox("藻类选择"); controlGroup->setFont(groupFont);
     QVBoxLayout* controlLayout = new QVBoxLayout(controlGroup);
-    // 图标+按钮并排
-    QHBoxLayout* rowA = new QHBoxLayout();
-    rowA->addWidget(m_iconTypeA);
-    rowA->addWidget(m_btnTypeA);
-    QHBoxLayout* rowB = new QHBoxLayout();
-    rowB->addWidget(m_iconTypeB);
-    rowB->addWidget(m_btnTypeB);
-    QHBoxLayout* rowC = new QHBoxLayout();
-    rowC->addWidget(m_iconTypeC);
-    rowC->addWidget(m_btnTypeC);
-    controlLayout->addLayout(rowA);
-    controlLayout->addLayout(rowB);
-    controlLayout->addLayout(rowC);
+    QHBoxLayout* rowA = new QHBoxLayout(); rowA->addWidget(m_iconTypeA); rowA->addWidget(m_btnTypeA);
+    QHBoxLayout* rowB = new QHBoxLayout(); rowB->addWidget(m_iconTypeB); rowB->addWidget(m_btnTypeB);
+    QHBoxLayout* rowC = new QHBoxLayout(); rowC->addWidget(m_iconTypeC); rowC->addWidget(m_btnTypeC);
+    controlLayout->addLayout(rowA); controlLayout->addLayout(rowB); controlLayout->addLayout(rowC);
     rightLayout->addWidget(controlGroup);
-    // 藻类A说明
-    QGroupBox* infoA = new QGroupBox("藻类A属性");
+    // 藻类说明分组
+    QGroupBox* infoA = new QGroupBox("藻类A属性"); infoA->setFont(groupFont);
     QVBoxLayout* infoALayout = new QVBoxLayout(infoA);
     QLabel* lblInfoA = new QLabel("光照需求: 10/8/5\n种植消耗: 糖×10, 蛋白×5\n遮光效果: 下方1格, -5\n消耗: N×1/秒, C×8/秒\n产出: 糖×5/秒, 蛋白×2/秒\n特性: 同类相邻减产");
-    lblInfoA->setWordWrap(true);
-    infoALayout->addWidget(lblInfoA);
+    lblInfoA->setWordWrap(true); lblInfoA->setStyleSheet("font-size:13px; color:#333;"); infoALayout->addWidget(lblInfoA);
     rightLayout->addWidget(infoA);
-    // 藻类B说明
-    QGroupBox* infoB = new QGroupBox("藻类B属性");
+    QGroupBox* infoB = new QGroupBox("藻类B属性"); infoB->setFont(groupFont);
     QVBoxLayout* infoBLayout = new QVBoxLayout(infoB);
     QLabel* lblInfoB = new QLabel("光照需求: 12/10/6\n种植消耗: 糖×8, 脂质×6, 维生素×2\n遮光效果: 下方2格, 各-3\n消耗: N×2/秒, C×6/秒\n产出: 糖×3/秒, 脂质×4/秒, 维生素×1/秒\n特性: 提升左右恢复速率");
-    lblInfoB->setWordWrap(true);
-    infoBLayout->addWidget(lblInfoB);
+    lblInfoB->setWordWrap(true); lblInfoB->setStyleSheet("font-size:13px; color:#333;"); infoBLayout->addWidget(lblInfoB);
     rightLayout->addWidget(infoB);
-    // 藻类C说明
-    QGroupBox* infoC = new QGroupBox("藻类C属性");
+    QGroupBox* infoC = new QGroupBox("藻类C属性"); infoC->setFont(groupFont);
     QVBoxLayout* infoCLayout = new QVBoxLayout(infoC);
     QLabel* lblInfoC = new QLabel("光照需求: 8/6/4\n种植消耗: 糖×5, 蛋白×2, 维生素×8\n遮光效果: 无\n消耗: N×2/秒, C×12/秒\n产出: 糖×3/秒, 蛋白×3/秒, 维生素×5/秒\n特性: 与B连接时糖减产");
-    lblInfoC->setWordWrap(true);
-    infoCLayout->addWidget(lblInfoC);
+    lblInfoC->setWordWrap(true); lblInfoC->setStyleSheet("font-size:13px; color:#333;"); infoCLayout->addWidget(lblInfoC);
     rightLayout->addWidget(infoC);
     rightLayout->addStretch(1);
 
     // 三栏布局
     mainLayout->addWidget(leftPanel, 2);
-    mainLayout->addWidget(centerPanel, 5);
-    mainLayout->addWidget(rightPanel, 3);
+    mainLayout->addWidget(centerPanel, 8); // 网格区域最大
+    mainLayout->addWidget(rightPanel, 2);
 
-    // 底部操作提示栏
-    QLabel* tipLabel = new QLabel("选择藻类并点击网格位置，右键可移除藻类", this);
-    tipLabel->setStyleSheet("color: #aaa; font-size: 13px; padding: 4px;");
+    // 底部操作提示栏（始终可见）
+    QLabel* tipLabel = new QLabel("选择藻类并点击网格位置，右键可移除藻类 | 1/2/3切换藻类 | ESC菜单", this);
+    tipLabel->setStyleSheet("color: #fff; font-size: 15px; font-weight:bold; background: #1976d2; border-radius:8px; padding: 6px;");
     statusBar()->addWidget(tipLabel, 1);
 }
 
 void MainWindow::initializeCellWidgets() {
-    m_cellWidgets.resize(m_game->getGrid()->getRows());
-    for (int row = 0; row < m_game->getGrid()->getRows(); ++row) {
+    m_cellWidgets.resize(m_game && m_game->getGrid() ? m_game->getGrid()->getRows() : 0);
+    for (int row = 0; m_game && m_game->getGrid() && row < m_game->getGrid()->getRows(); ++row) {
         m_cellWidgets[row].resize(m_game->getGrid()->getCols());
         for (int col = 0; col < m_game->getGrid()->getCols(); ++col) {
             CellWidget* cellWidget = new CellWidget(row, col, this);
             m_cellWidgets[row][col] = cellWidget;
             AlgaeCell* algaeCell = m_game->getGrid()->getCell(row, col);
-            cellWidget->setAlgaeCell(algaeCell);
-            m_cellsLayout->addWidget(cellWidget, row, col);
-            connect(cellWidget, &CellWidget::leftClicked, this, &MainWindow::onCellClicked);
-            connect(cellWidget, &CellWidget::rightClicked, this, &MainWindow::onCellRightClicked);
-            connect(algaeCell, &AlgaeCell::cellChanged, this, [this, row, col]() {
-                updateCellDisplay(row, col);
-            });
+            if (algaeCell) {
+                cellWidget->setAlgaeCell(algaeCell);
+                m_cellsLayout->addWidget(cellWidget, row, col);
+                connect(cellWidget, &CellWidget::leftClicked, this, &MainWindow::onCellClicked);
+                connect(cellWidget, &CellWidget::rightClicked, this, &MainWindow::onCellRightClicked);
+                connect(algaeCell, &AlgaeCell::cellChanged, this, [this, row, col]() {
+                    updateCellDisplay(row, col);
+                });
+            }
         }
     }
 }
@@ -705,6 +816,7 @@ void MainWindow::updateSelectedAlgaeButton() {
 }
 
 void MainWindow::updateGridDisplay() {
+    if (!m_game || !m_game->getGrid()) return;
     for (int row = 0; row < m_game->getGrid()->getRows(); ++row) {
         for (int col = 0; col < m_game->getGrid()->getCols(); ++col) {
             updateCellDisplay(row, col);
@@ -713,12 +825,15 @@ void MainWindow::updateGridDisplay() {
 }
 
 void MainWindow::updateCellDisplay(int row, int col) {
+    if (!m_game || !m_game->getGrid()) return;
     if (row < m_cellWidgets.size() && col < m_cellWidgets[row].size()) {
-        m_cellWidgets[row][col]->setAlgaeCell(m_game->getGrid()->getCell(row, col));
+        AlgaeCell* cell = m_game->getGrid()->getCell(row, col);
+        if (cell) m_cellWidgets[row][col]->setAlgaeCell(cell);
     }
 }
 
 void MainWindow::displayCellInfo(int row, int col) {
+    if (!m_game || !m_game->getGrid()) return;
     GameGrid* grid = m_game->getGrid();
     AlgaeCell* cell = grid->getCell(row, col);
     if (cell) {
@@ -728,29 +843,36 @@ void MainWindow::displayCellInfo(int row, int col) {
             .arg(grid->getCarbonAt(row, col))
             .arg(grid->getLightAt(row));
         statusBar()->showMessage(info, 2000);
-        // 仍然弹出tooltip
         QToolTip::showText(QCursor::pos(), info);
     }
 }
 
 void MainWindow::onCellClicked(int row, int col) {
-    // Plant selected algae type on the cell
     bool success = m_game->plantAlgae(row, col);
-
-    if (success) {
-        statusBar()->showMessage(tr("放置藻类在 (%1,%2)").arg(row).arg(col), 2000);
-        QToolTip::showText(QCursor::pos(), tr("种植成功！"));
-    } else {
-        statusBar()->showMessage(tr("无法放置藻类：资源不足或格子已被占用"), 2000);
+    using PR = AlgaeCell::PlantResult;
+    PR result = m_game->getLastPlantResult();
+    QString tip, bar;
+    switch (result) {
+        case PR::PLANT_SUCCESS:
+            tip = "种植成功！"; bar = tr("放置藻类在 (%1,%2)").arg(row).arg(col);
+            playEffect("st30f0n665joahrrvuj05fechvwkcv10/planted.wav");
+            break;
+        default:
+            playEffect("buzzer.wav");
+            break;
     }
+    if (!tip.isEmpty()) QToolTip::showText(QCursor::pos(), tip);
+    if (!bar.isEmpty()) statusBar()->showMessage(bar, 2000);
+    updateCellDisplay(row, col);
 }
 
 void MainWindow::onCellRightClicked(int row, int col) {
-    // Remove algae from the cell
     bool success = m_game->removeAlgae(row, col);
-
     if (success) {
+        playEffect("displant.wav");
         statusBar()->showMessage(tr("移除藻类，恢复周围资源"), 2000);
+    } else {
+        playEffect("buzzer.wav");
     }
 }
 
@@ -787,7 +909,7 @@ void MainWindow::onProductionRatesChanged() {
 void MainWindow::updateWinProgress() {
     double progress = m_game->getResources()->getWinProgress();
     m_progressBar->setValue(static_cast<int>(progress * 100));
-
+    playBGM(progress);
     // Change color based on progress
     QString styleSheet;
     if (progress < 0.3) {
@@ -856,4 +978,24 @@ void MainWindow::updateScoreBar() {
     }
     if (totalScore > m_highScore) m_highScore = totalScore;
     m_scoreLabel->setText(QString("分数：%1   最高分：%2").arg(totalScore).arg(m_highScore));
+}
+
+void MainWindow::playBGM(double progress) {
+    int bgmType = (progress < 0.5) ? 1 : 2;
+    if ((m_lastBgmProgress < 0.5 && progress >= 0.5) || (m_lastBgmProgress >= 0.5 && progress < 0.5) || m_lastBgmProgress < 0) {
+        if (bgmType == 1) {
+            m_bgmPlayer->setSource(QUrl("qrc:/sounds/st30f0n665joahrrvuj05fechvwkcv10/background_music1.wav"));
+        } else {
+            m_bgmPlayer->setSource(QUrl("qrc:/sounds/st30f0n665joahrrvuj05fechvwkcv10/background_music2.wav"));
+        }
+        m_bgmPlayer->play();
+    }
+    m_lastBgmProgress = progress;
+}
+
+void MainWindow::playEffect(const QString& name) {
+    QString path = "qrc:/sounds/" + name;
+    qDebug() << "QMediaPlayer播放音效(最终路径):" << path;
+    m_effectPlayer->setSource(QUrl(path));
+    m_effectPlayer->play();
 }

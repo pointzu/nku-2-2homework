@@ -5,6 +5,9 @@
 #include <QObject>
 #include <QPointF>
 #include <QWidget>
+#include <QMediaPlayer>
+#include <QAudioOutput>
+#include <QString>
 
 class GameGrid;
 
@@ -19,10 +22,19 @@ public:
         DYING
     };
 
+    enum PlantResult {
+        PLANT_SUCCESS,
+        PLANT_OCCUPIED,
+        PLANT_LIGHT_LOW,
+        PLANT_LIGHT_INSUFFICIENT,
+        PLANT_RESOURCE_LOW,
+        PLANT_RESERVED
+    };
+
     AlgaeCell(int row, int col, GameGrid* parent = nullptr);
     ~AlgaeCell();
 
-    bool plant(AlgaeType::Type type);
+    PlantResult plant(AlgaeType::Type type, double lightLevel, bool canAfford, bool canReserve);
     void remove();
     void update(double deltaTime);
 
@@ -54,6 +66,8 @@ public:
     bool isShadingVisible() const { return m_showShadingArea; }
 
     void setStatus(Status status);
+
+    void playSound(const QString& resourcePath);
 
 protected:
     void paintEvent(QPaintEvent* event) override;
@@ -89,6 +103,9 @@ private:
     double m_lipidProduction;
     double m_proProduction;
     double m_vitProduction;
+
+    QMediaPlayer* m_player;
+    QAudioOutput* m_audioOutput;
 
     void updateStatus();
     void checkSpecialRules();

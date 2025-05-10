@@ -14,6 +14,10 @@
 #include <QMenuBar>
 #include <QGroupBox>
 #include <QCursor>
+#include <QtMultimedia/QMediaPlayer>
+#include <QtMultimedia/QAudioOutput>
+#include <QSoundEffect>
+#include <QMap>
 
 class CellWidget;
 
@@ -23,9 +27,12 @@ class MainWindow : public QMainWindow {
 public:
     explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
+    AlgaeGame* getGame() const { return m_game; }
+    bool isShadingPreviewEnabled() const { return m_showShadingPreview; }
 
 protected:
     void keyPressEvent(QKeyEvent *event) override;
+    void keyReleaseEvent(QKeyEvent *event) override;
 
 private slots:
     void onCellClicked(int row, int col);
@@ -99,6 +106,15 @@ private:
     int m_highScore = 0; // 最高分
 
     bool m_hasShownWinMsg = false; // 胜利提示是否已弹出
+    bool m_showShadingPreview = false;
+
+    QMediaPlayer* m_bgmPlayer = nullptr;
+    QAudioOutput* m_bgmAudio = nullptr;
+    QMediaPlayer* m_effectPlayer = nullptr;
+    QAudioOutput* m_effectAudio = nullptr;
+    double m_lastBgmProgress = -1.0;
+
+    QMap<QString, QSoundEffect*> m_soundEffects;
 
     void setupUI();
     void setupGameGrid();
@@ -113,6 +129,8 @@ private:
     void initializeCellWidgets();
     void updateWinConditionLabels();
     void updateScoreBar();
+    void playBGM(double progress);
+    void playEffect(const QString& name);
 };
 
 // Helper widget for grid cells
@@ -124,6 +142,7 @@ public:
     void setAlgaeCell(AlgaeCell* cell);
     int getRow() const { return m_row; }
     int getCol() const { return m_col; }
+    bool isHovered() const { return m_hovered; }
 
 signals:
     void leftClicked(int row, int col);
@@ -134,11 +153,13 @@ protected:
     void paintEvent(QPaintEvent* event) override;
     void mousePressEvent(QMouseEvent* event) override;
     void enterEvent(QEnterEvent* event) override;
+    void leaveEvent(QEvent* event) override;
 
 private:
     int m_row;
     int m_col;
     AlgaeCell* m_cell = nullptr;
+    bool m_hovered = false;
 };
 
 #endif // MAINWINDOW_H

@@ -6,15 +6,15 @@ AlgaeType::Properties AlgaeType::getProperties(Type type) {
     switch (type) {
         case TYPE_A:
             props.name = "小型藻类 A";
-            props.lightRequiredPlant = 10;
-            props.lightRequiredMaintain = 8;
-            props.lightRequiredSurvive = 5;
+            props.lightRequiredPlant = 22;
+            props.lightRequiredMaintain = 18;
+            props.lightRequiredSurvive = 12;
             props.plantCostCarb = 10;
             props.plantCostLipid = 0;
             props.plantCostPro = 5;
             props.plantCostVit = 0;
             props.shadingDepth = 1;
-            props.shadingAmount = 5;
+            props.shadingAmount = 8;
             props.consumeRateN = 1;
             props.consumeRateC = 8;
             props.produceRateCarb = 5;
@@ -30,15 +30,15 @@ AlgaeType::Properties AlgaeType::getProperties(Type type) {
 
         case TYPE_B:
             props.name = "小型藻类 B";
-            props.lightRequiredPlant = 12;
-            props.lightRequiredMaintain = 10;
-            props.lightRequiredSurvive = 6;
+            props.lightRequiredPlant = 18;
+            props.lightRequiredMaintain = 14;
+            props.lightRequiredSurvive = 10;
             props.plantCostCarb = 8;
             props.plantCostLipid = 6;
             props.plantCostPro = 0;
             props.plantCostVit = 2;
             props.shadingDepth = 2;
-            props.shadingAmount = 3;
+            props.shadingAmount = 5;
             props.consumeRateN = 2;
             props.consumeRateC = 6;
             props.produceRateCarb = 3;
@@ -54,9 +54,9 @@ AlgaeType::Properties AlgaeType::getProperties(Type type) {
 
         case TYPE_C:
             props.name = "小型藻类 C";
-            props.lightRequiredPlant = 8;
-            props.lightRequiredMaintain = 6;
-            props.lightRequiredSurvive = 4;
+            props.lightRequiredPlant = 12;
+            props.lightRequiredMaintain = 8;
+            props.lightRequiredSurvive = 6;
             props.plantCostCarb = 5;
             props.plantCostLipid = 0;
             props.plantCostPro = 2;

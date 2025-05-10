@@ -43,6 +43,8 @@ public:
     void setMusicVolume(int volume);
     void setSoundEffectsVolume(int volume);
 
+    AlgaeCell::PlantResult getLastPlantResult() const { return m_lastPlantResult; }
+
 public slots:
     void update();
     void onGridChanged();
@@ -63,6 +65,8 @@ private:
 
     GameGrid* m_grid;
     GameResources* m_resources;
+
+    AlgaeCell::PlantResult m_lastPlantResult = AlgaeCell::PLANT_SUCCESS;
 
     // 删除音乐相关成员
     // int m_musicVolume;
