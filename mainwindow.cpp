@@ -855,7 +855,7 @@ void MainWindow::onCellClicked(int row, int col) {
     switch (result) {
         case PR::PLANT_SUCCESS:
             tip = "种植成功！"; bar = tr("放置藻类在 (%1,%2)").arg(row).arg(col);
-            playEffect("st30f0n665joahrrvuj05fechvwkcv10/planted.wav");
+            playEffect("planted.wav");
             break;
         default:
             playEffect("buzzer.wav");
@@ -984,9 +984,9 @@ void MainWindow::playBGM(double progress) {
     int bgmType = (progress < 0.5) ? 1 : 2;
     if ((m_lastBgmProgress < 0.5 && progress >= 0.5) || (m_lastBgmProgress >= 0.5 && progress < 0.5) || m_lastBgmProgress < 0) {
         if (bgmType == 1) {
-            m_bgmPlayer->setSource(QUrl("qrc:/sounds/st30f0n665joahrrvuj05fechvwkcv10/background_music1.wav"));
+            m_bgmPlayer->setSource(QUrl("qrc:/resources/st30f0n665joahrrvuj05fechvwkcv10/background_music1.wav"));
         } else {
-            m_bgmPlayer->setSource(QUrl("qrc:/sounds/st30f0n665joahrrvuj05fechvwkcv10/background_music2.wav"));
+            m_bgmPlayer->setSource(QUrl("qrc:/resources/st30f0n665joahrrvuj05fechvwkcv10/background_music2.wav"));
         }
         m_bgmPlayer->play();
     }
@@ -994,7 +994,7 @@ void MainWindow::playBGM(double progress) {
 }
 
 void MainWindow::playEffect(const QString& name) {
-    QString path = "qrc:/sounds/" + name;
+    QString path = "qrc:/resources/st30f0n665joahrrvuj05fechvwkcv10/" + name;
     qDebug() << "QMediaPlayer播放音效(最终路径):" << path;
     m_effectPlayer->setSource(QUrl(path));
     m_effectPlayer->play();
