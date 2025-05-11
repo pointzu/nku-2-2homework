@@ -208,6 +208,49 @@ void AlgaeCell::paintEvent(QPaintEvent* event)
         QRect outRect(rect().left(), rect().bottom()+2, rect().width(), 14);
         p->drawText(outRect, Qt::AlignCenter, resText);
     }
+
+    // --- 藻类特性可视化 ---
+    if (isOccupied()) {
+        // A型相邻减产：左上角红色圆底白色粗体“-”
+        if (m_type == AlgaeType::TYPE_A && isReducedByNeighborA()) {
+            painter.save();
+            int r = 18;
+            QRect markRect(rect().left()+2, rect().top()+2, r, r);
+            painter.setBrush(QColor(220,0,0));
+            painter.setPen(Qt::NoPen);
+            painter.drawEllipse(markRect);
+            QFont f = painter.font(); f.setPointSize(14); f.setBold(true); painter.setFont(f);
+            painter.setPen(Qt::white);
+            painter.drawText(markRect, Qt::AlignCenter, "-");
+            painter.restore();
+        }
+        // B型被加速：右上角绿色圆底白色粗体“+”
+        if (isBoostedByNeighborB()) {
+            painter.save();
+            int r = 18;
+            QRect markRect(rect().right()-r-2, rect().top()+2, r, r);
+            painter.setBrush(QColor(0,180,0));
+            painter.setPen(Qt::NoPen);
+            painter.drawEllipse(markRect);
+            QFont f = painter.font(); f.setPointSize(14); f.setBold(true); painter.setFont(f);
+            painter.setPen(Qt::white);
+            painter.drawText(markRect, Qt::AlignCenter, "+");
+            painter.restore();
+        }
+        // C型被B减产：右下角黄色圆底黑色粗体“!”
+        if (m_type == AlgaeType::TYPE_C && isReducedByNeighborB()) {
+            painter.save();
+            int r = 18;
+            QRect markRect(rect().right()-r-2, rect().bottom()-r-2, r, r);
+            painter.setBrush(QColor(255,220,0));
+            painter.setPen(Qt::NoPen);
+            painter.drawEllipse(markRect);
+            QFont f = painter.font(); f.setPointSize(14); f.setBold(true); painter.setFont(f);
+            painter.setPen(Qt::black);
+            painter.drawText(markRect, Qt::AlignCenter, "!");
+            painter.restore();
+        }
+    }
 }
 
 void AlgaeCell::enterEvent(QEnterEvent* event)
@@ -252,10 +295,24 @@ void AlgaeCell::updateProductionRates() {
     double ratio = (light - props.lightRequiredSurvive) / (props.lightRequiredPlant - props.lightRequiredSurvive);
     ratio = qBound(0.0, ratio, 1.0);
     m_productionMultiplier = ratio;
+
+    // 基础产量
     m_carbProduction = props.produceRateCarb * m_productionMultiplier;
     m_lipidProduction = props.produceRateLipid * m_productionMultiplier;
     m_proProduction = props.produceRatePro * m_productionMultiplier;
     m_vitProduction = props.produceRateVit * m_productionMultiplier;
+
+    // A型相邻减产：所有产量减半
+    if (m_type == AlgaeType::TYPE_A && isReducedByNeighborA()) {
+        m_carbProduction *= 0.5;
+        m_lipidProduction *= 0.5;
+        m_proProduction *= 0.5;
+        m_vitProduction *= 0.5;
+    }
+    // C型被B减产：糖产量减半
+    if (m_type == AlgaeType::TYPE_C && isReducedByNeighborB()) {
+        m_carbProduction *= 0.5;
+    }
 }
 
 void AlgaeCell::setStatus(Status status) {

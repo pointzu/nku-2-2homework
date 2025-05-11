@@ -3,6 +3,8 @@
 #include <QApplication>     // Qt应用程序类
 #include"mainwindow.h"    // 主窗口头文件
 #include <QPainter>
+#include <vector>
+
 GameGrid::GameGrid(QWidget* parent)
     : QWidget(parent)
     , m_layout(new QGridLayout(this)) // 创建网格布局
@@ -236,6 +238,8 @@ void GameGrid::update(double deltaTime) {
             }
         }
     }
+    // 2.5. 植株特性逻辑刷新
+    calculateSpecialEffects();
     // 3. 产出资源逻辑：每10秒产出一次
     m_produceTimer += deltaTime;
     if (m_produceTimer >= 10.0) {
@@ -428,11 +432,64 @@ void GameGrid::calculateSpecialEffects() {
     QVector<QVector<double>> origNitrogenRegen = m_nitrogenRegen;
     QVector<QVector<double>> origCarbonRegen = m_carbonRegen;
 
-    // Apply special effects
+    // 先清空所有特性标记
     for (int row = 0; row < m_rows; ++row) {
         for (int col = 0; col < m_cols; ++col) {
             AlgaeCell* cell = m_cells[row][col];
+            if (cell) {
+                cell->setReducedByNeighborA(false);
+                cell->setBoostedByNeighborB(false);
+                cell->setReducedByNeighborB(false);
+            }
+        }
+    }
 
+    // 遍历所有格子，设置特性
+    for (int row = 0; row < m_rows; ++row) {
+        for (int col = 0; col < m_cols; ++col) {
+            AlgaeCell* cell = m_cells[row][col];
+            if (!cell) continue;
+            // A型：同类相邻减产
+            if (cell->getType() == AlgaeType::TYPE_A) {
+                bool reduced = false;
+                for (auto [dr, dc] : std::vector<std::pair<int,int>>{{-1,0},{1,0},{0,-1},{0,1}}) {
+                    int nr = row + dr, nc = col + dc;
+                    if (nr >= 0 && nr < m_rows && nc >= 0 && nc < m_cols) {
+                        if (m_cells[nr][nc]->getType() == AlgaeType::TYPE_A) {
+                            reduced = true;
+                        }
+                    }
+                }
+                cell->setReducedByNeighborA(reduced);
+            }
+            // B型：提升左右格恢复速率
+            if (cell->getType() == AlgaeType::TYPE_B) {
+                // 左右格
+                if (col > 0 && m_cells[row][col-1]->isOccupied())
+                    m_cells[row][col-1]->setBoostedByNeighborB(true);
+                if (col < m_cols-1 && m_cells[row][col+1]->isOccupied())
+                    m_cells[row][col+1]->setBoostedByNeighborB(true);
+            }
+            // C型：与B相邻减产
+            if (cell->getType() == AlgaeType::TYPE_C) {
+                bool reduced = false;
+                for (auto [dr, dc] : std::vector<std::pair<int,int>>{{-1,0},{1,0},{0,-1},{0,1}}) {
+                    int nr = row + dr, nc = col + dc;
+                    if (nr >= 0 && nr < m_rows && nc >= 0 && nc < m_cols) {
+                        if (m_cells[nr][nc]->getType() == AlgaeType::TYPE_B) {
+                            reduced = true;
+                        }
+                    }
+                }
+                cell->setReducedByNeighborB(reduced);
+            }
+        }
+    }
+
+    // B型提升左右格恢复速率
+    for (int row = 0; row < m_rows; ++row) {
+        for (int col = 0; col < m_cols; ++col) {
+            AlgaeCell* cell = m_cells[row][col];
             if (cell->isOccupied()) {
                 // Special rule for Type B: enhance regeneration in adjacent cells
                 if (cell->getType() == AlgaeType::TYPE_B) {
@@ -441,7 +498,6 @@ void GameGrid::calculateSpecialEffects() {
                         m_nitrogenRegen[row][col-1] = origNitrogenRegen[row][col-1] * 2.0;
                         m_carbonRegen[row][col-1] = origCarbonRegen[row][col-1] * 2.0;
                     }
-
                     // Right cell
                     if (col < m_cols-1) {
                         m_nitrogenRegen[row][col+1] = origNitrogenRegen[row][col+1] * 2.0;

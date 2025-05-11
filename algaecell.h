@@ -70,6 +70,17 @@ public:
 
     void setStatus(Status status); // 设置状态
 
+    // --- 特性可视化状态 ---
+    bool m_isReducedByNeighborA = false;
+    bool m_isBoostedByNeighborB = false;
+    bool m_isReducedByNeighborB = false;
+    void setReducedByNeighborA(bool v) { m_isReducedByNeighborA = v; }
+    bool isReducedByNeighborA() const { return m_isReducedByNeighborA; }
+    void setBoostedByNeighborB(bool v) { m_isBoostedByNeighborB = v; }
+    bool isBoostedByNeighborB() const { return m_isBoostedByNeighborB; }
+    void setReducedByNeighborB(bool v) { m_isReducedByNeighborB = v; }
+    bool isReducedByNeighborB() const { return m_isReducedByNeighborB; }
+
 protected:
     void paintEvent(QPaintEvent* event) override;      // 绘制事件
     void enterEvent(QEnterEvent* event) override;      // 鼠标进入事件

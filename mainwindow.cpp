@@ -502,6 +502,49 @@ void CellWidget::paintEvent(QPaintEvent* event) {
         docL.drawContents(&painter, QRectF(0, 0, outRect2.width(), outRect2.height()));
         painter.restore();
     }
+
+    // --- 藻类特性可视化 ---
+    if (m_cell) {
+        // A型相邻减产：左上角红色圆底白色粗体“-”
+        if (m_cell->getType() == AlgaeType::TYPE_A && m_cell->isReducedByNeighborA()) {
+            painter.save();
+            int r = 18;
+            QRect markRect(cellRect.left()+2, cellRect.top()+2, r, r);
+            painter.setBrush(QColor(220,0,0));
+            painter.setPen(Qt::NoPen);
+            painter.drawEllipse(markRect);
+            QFont f = painter.font(); f.setPointSize(14); f.setBold(true); painter.setFont(f);
+            painter.setPen(Qt::white);
+            painter.drawText(markRect, Qt::AlignCenter, "-");
+            painter.restore();
+        }
+        // B型被加速：右上角绿色圆底白色粗体“+”
+        if (m_cell->isBoostedByNeighborB()) {
+            painter.save();
+            int r = 18;
+            QRect markRect(cellRect.right()-r-2, cellRect.top()+2, r, r);
+            painter.setBrush(QColor(0,180,0));
+            painter.setPen(Qt::NoPen);
+            painter.drawEllipse(markRect);
+            QFont f = painter.font(); f.setPointSize(14); f.setBold(true); painter.setFont(f);
+            painter.setPen(Qt::white);
+            painter.drawText(markRect, Qt::AlignCenter, "+");
+            painter.restore();
+        }
+        // C型被B减产：右下角黄色圆底黑色粗体“!”
+        if (m_cell->getType() == AlgaeType::TYPE_C && m_cell->isReducedByNeighborB()) {
+            painter.save();
+            int r = 18;
+            QRect markRect(cellRect.right()-r-2, cellRect.bottom()-r-2, r, r);
+            painter.setBrush(QColor(255,220,0));
+            painter.setPen(Qt::NoPen);
+            painter.drawEllipse(markRect);
+            QFont f = painter.font(); f.setPointSize(14); f.setBold(true); painter.setFont(f);
+            painter.setPen(Qt::black);
+            painter.drawText(markRect, Qt::AlignCenter, "!");
+            painter.restore();
+        }
+    }
 }
 
 void CellWidget::mousePressEvent(QMouseEvent* event) {
