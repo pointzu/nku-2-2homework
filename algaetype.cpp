@@ -1,31 +1,32 @@
-#include "algaetype.h"
-#include <QColor>
+#include "algaetype.h" // 藻类类型定义头文件
+#include <QColor>        // Qt颜色类
 
+// 获取指定类型的属性
 AlgaeType::Properties AlgaeType::getProperties(Type type) {
     Properties props;
     switch (type) {
         case TYPE_A:
             props.name = "小型藻类 A";
-            props.lightRequiredPlant = 22;
-            props.lightRequiredMaintain = 18;
-            props.lightRequiredSurvive = 12;
-            props.plantCostCarb = 20;
-            props.plantCostLipid = 0;
-            props.plantCostPro = 10;
-            props.plantCostVit = 0;
-            props.shadingDepth = 1;
-            props.shadingAmount = 8;
-            props.consumeRateN = 1;
-            props.consumeRateC = 8;
-            props.produceRateCarb = 5;
-            props.produceRateLipid = 0;
-            props.produceRatePro = 2;
-            props.produceRateVit = 0;
-            props.imagePath = ":/resources/st30f0n665joahrrvuj05fechvwkcv10/type_a.png";
+            props.lightRequiredPlant = 22;      // 种植所需光照
+            props.lightRequiredMaintain = 18;   // 维持所需光照
+            props.lightRequiredSurvive = 12;    // 存活所需光照
+            props.plantCostCarb = 20;           // 种植消耗糖类
+            props.plantCostLipid = 0;           // 种植消耗脂质
+            props.plantCostPro = 10;            // 种植消耗蛋白质
+            props.plantCostVit = 0;             // 种植消耗维生素
+            props.shadingDepth = 1;             // 遮光深度
+            props.shadingAmount = 8;            // 遮光强度
+            props.consumeRateN = 1;             // 每秒消耗氮
+            props.consumeRateC = 8;             // 每秒消耗碳
+            props.produceRateCarb = 5;          // 每秒产糖
+            props.produceRateLipid = 0;         // 每秒产脂质
+            props.produceRatePro = 2;           // 每秒产蛋白
+            props.produceRateVit = 0;           // 每秒产维生素
+            props.imagePath = ":/resources/st30f0n665joahrrvuj05fechvwkcv10/type_a.png"; // 图标
             props.hoverImagePath = ":/resources/st30f0n665joahrrvuj05fechvwkcv10/type_a.png";
             props.selectedImagePath = ":/resources/st30f0n665joahrrvuj05fechvwkcv10/type_a.png";
             props.cursorImagePath = "";
-            props.shadingColor = QColor(0, 0, 0, 50);
+            props.shadingColor = QColor(0, 0, 0, 50); // 遮荫色
             break;
 
         case TYPE_B:
@@ -103,10 +104,12 @@ AlgaeType::Properties AlgaeType::getProperties(Type type) {
     return props;
 }
 
+// 获取类型名称
 QString AlgaeType::getTypeName(Type type) {
     return getProperties(type).name;
 }
 
+// 判断资源是否足够种植
 bool AlgaeType::canAfford(Type type, double carb, double lipid, double pro, double vit) {
     Properties props = getProperties(type);
     return carb >= props.plantCostCarb &&
@@ -115,6 +118,7 @@ bool AlgaeType::canAfford(Type type, double carb, double lipid, double pro, doub
            vit >= props.plantCostVit;
 }
 
+// 扣除种植消耗
 void AlgaeType::deductPlantingCost(Type type, double& carb, double& lipid, double& pro, double& vit) {
     Properties props = getProperties(type);
     carb -= props.plantCostCarb;

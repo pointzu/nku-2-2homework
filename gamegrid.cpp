@@ -1,43 +1,43 @@
-#include "gamegrid.h"
-#include <QRandomGenerator>
-#include <QApplication>
-#include"mainwindow.h"
+#include "gamegrid.h" // 游戏网格头文件
+#include <QRandomGenerator> // Qt随机数生成器
+#include <QApplication>     // Qt应用程序类
+#include"mainwindow.h"    // 主窗口头文件
 GameGrid::GameGrid(QWidget* parent)
     : QWidget(parent)
-    , m_layout(new QGridLayout(this))
-    , m_rows(10)  // 默认值
-    , m_cols(8)   // 默认值
-    , m_selectedAlgaeType(AlgaeType::NONE)
-    , m_produceTimer(0.0)
+    , m_layout(new QGridLayout(this)) // 创建网格布局
+    , m_rows(10)  // 默认行数
+    , m_cols(8)   // 默认列数
+    , m_selectedAlgaeType(AlgaeType::NONE) // 初始无选中藻类
+    , m_produceTimer(0.0) // 产出计时器归零
 {
-    m_layout->setSpacing(2);
-    m_layout->setContentsMargins(2, 2, 2, 2);
-    setLayout(m_layout);
-    initialize(m_rows, m_cols);
+    m_layout->setSpacing(2); // 设置格子间距
+    m_layout->setContentsMargins(2, 2, 2, 2); // 设置边距
+    setLayout(m_layout); // 应用布局
+    initialize(m_rows, m_cols); // 初始化网格
 }
 
 void GameGrid::initialize(int rows, int cols)
 {
     m_rows = rows;
     m_cols = cols;
-    createCells();
-    initializeGrid();
-    initializeResources();
+    createCells();        // 创建所有单元格
+    initializeGrid();     // 初始化网格结构
+    initializeResources();// 初始化资源
 }
 
 void GameGrid::createCells()
 {
-    clearCells();
-    m_cells.resize(m_rows);
+    clearCells(); // 先清空原有单元格
+    m_cells.resize(m_rows); // 调整行数
     for (int row = 0; row < m_rows; ++row) {
-        m_cells[row].resize(m_cols);
+        m_cells[row].resize(m_cols); // 调整列数
         for (int col = 0; col < m_cols; ++col) {
-            AlgaeCell* cell = new AlgaeCell(row, col, this);
+            AlgaeCell* cell = new AlgaeCell(row, col, this); // 创建单元格
             m_cells[row][col] = cell;
-            m_layout->addWidget(cell, row, col);
+            m_layout->addWidget(cell, row, col); // 加入布局
             if (cell) {
-                connect(cell, &AlgaeCell::cellClicked, this, &GameGrid::onCellClicked);
-                connect(cell, &AlgaeCell::cellHovered, this, &GameGrid::onCellHovered);
+                connect(cell, &AlgaeCell::cellClicked, this, &GameGrid::onCellClicked); // 连接点击信号
+                connect(cell, &AlgaeCell::cellHovered, this, &GameGrid::onCellHovered); // 连接悬浮信号
             }
         }
     }
@@ -59,8 +59,8 @@ void GameGrid::setSelectedAlgaeType(AlgaeType::Type type)
 {
     if (m_selectedAlgaeType != type) {
         m_selectedAlgaeType = type;
-        updateCursor();
-        updateShadingAreas();
+        updateCursor();      // 更新鼠标指针
+        updateShadingAreas();// 更新遮荫区
     }
 }
 
@@ -131,14 +131,14 @@ void GameGrid::updateShadingAreas()
 void GameGrid::onCellClicked(int row, int col)
 {
     if (getCell(row, col))
-        emit cellClicked(row, col);
+        emit cellClicked(row, col); // 发射信号
 }
 
 void GameGrid::onCellHovered(int row, int col, bool entered)
 {
     if (getCell(row, col))
-        emit cellHovered(row, col, entered);
-    updateShadingAreas();
+        emit cellHovered(row, col, entered); // 发射信号
+    updateShadingAreas(); // 悬浮时刷新遮荫区
 }
 
 GameGrid::~GameGrid() {
@@ -155,13 +155,12 @@ AlgaeCell* GameGrid::getCell(int row, int col) const {
 
 double GameGrid::getLightAt(int row, int col) const {
     if (row >= 0 && row < m_rows && col >= 0 && col < m_cols) {
-        return m_baseLight[row] - calculateShadingAt(row, col);
+        return m_baseLight[row] - calculateShadingAt(row, col); // 基础光照减遮光
     }
     return 0.0;
 }
 
 double GameGrid::getLightAt(int row) const {
-    // 默认取第0列，兼容旧接口
     return getLightAt(row, 0);
 }
 
@@ -193,6 +192,7 @@ double GameGrid::getCarbonRegenRate(int row, int col) const {
     return 0.0;
 }
 
+// 网格整体更新，每帧调用
 void GameGrid::update(double deltaTime) {
     // 1. 先消耗局部资源
     for (int row = 0; row < m_rows; ++row) {
@@ -200,24 +200,24 @@ void GameGrid::update(double deltaTime) {
             AlgaeCell* cell = m_cells[row][col];
             if (cell->isOccupied()) {
                 AlgaeType::Properties props = AlgaeType::getProperties(cell->getType());
-                double nNeed = props.consumeRateN * deltaTime;
-                double cNeed = props.consumeRateC * deltaTime;
+                double nNeed = props.consumeRateN * deltaTime; // 需要消耗的氮
+                double cNeed = props.consumeRateC * deltaTime; // 需要消耗的碳
                 if (m_nitrogen[row][col] < nNeed || m_carbon[row][col] < cNeed) {
-                    cell->setStatus(AlgaeCell::RESOURCE_LOW);
+                    cell->setStatus(AlgaeCell::RESOURCE_LOW); // 资源不足
                 } else {
-                    cell->setStatus(AlgaeCell::NORMAL);
+                    cell->setStatus(AlgaeCell::NORMAL); // 正常
                     m_nitrogen[row][col] -= nNeed;
                     m_carbon[row][col] -= cNeed;
                 }
             } else {
-                cell->setStatus(AlgaeCell::NORMAL);
+                cell->setStatus(AlgaeCell::NORMAL); // 空格子状态正常
             }
         }
     }
     // 2. 遮光区域可视化（同前）
     for (int row = 0; row < m_rows; ++row) {
         for (int col = 0; col < m_cols; ++col) {
-            m_cells[row][col]->setShadingVisible(false);
+            m_cells[row][col]->setShadingVisible(false); // 先全部隐藏
         }
     }
     for (int row = 0; row < m_rows; ++row) {
@@ -229,7 +229,7 @@ void GameGrid::update(double deltaTime) {
                 for (int d = 1; d <= depth; ++d) {
                     int targetRow = row + d;
                     if (targetRow < m_rows) {
-                        m_cells[targetRow][col]->setShadingVisible(true);
+                        m_cells[targetRow][col]->setShadingVisible(true); // 下方格子显示遮荫
                     }
                 }
             }
@@ -244,7 +244,7 @@ void GameGrid::update(double deltaTime) {
                 AlgaeCell* cell = m_cells[row][col];
                 if (cell->isOccupied()) {
                     if (cell->getStatus() == AlgaeCell::NORMAL || cell->getStatus() == AlgaeCell::RESOURCE_LOW) {
-                        totalCarb += cell->getCarbProduction() * 10.0;
+                        totalCarb += cell->getCarbProduction() * 10.0; // 10秒产量
                         totalLipid += cell->getLipidProduction() * 10.0;
                         totalPro += cell->getProProduction() * 10.0;
                         totalVit += cell->getVitProduction() * 10.0;
@@ -253,35 +253,37 @@ void GameGrid::update(double deltaTime) {
             }
         }
         // 通过信号或直接调用GameResources接口加资源（需适配你的架构）
-        emit produceResources(totalCarb, totalLipid, totalPro, totalVit);
-        m_produceTimer = 0.0;
+        emit produceResources(totalCarb, totalLipid, totalPro, totalVit); // 发射产出信号
+        m_produceTimer = 0.0; // 计时器归零
     }
     // 4. 更新全局资源
     emit resourcesChanged(); // 通知UI刷新
     // 5. 更新所有格子（状态刷新）
     for (int row = 0; row < m_rows; ++row) {
         for (int col = 0; col < m_cols; ++col) {
-            m_cells[row][col]->update(deltaTime);
+            m_cells[row][col]->update(deltaTime); // 单元格自身刷新
         }
     }
-    emit gridChanged();
+    emit gridChanged(); // 通知网格变化
 }
 
+// 重置网格和资源
 void GameGrid::reset() {
     // Reset all cells
     for (int row = 0; row < m_rows; ++row) {
         for (int col = 0; col < m_cols; ++col) {
-            m_cells[row][col]->remove();
+            m_cells[row][col]->remove(); // 移除所有藻类
         }
     }
 
     // Reset resources
-    initializeResources();
+    initializeResources(); // 重新初始化资源
 
     emit gridChanged();
     emit resourcesChanged();
 }
 
+// 计算某格的遮光总量
 int GameGrid::calculateShadingAt(int row, int col) const {
     int totalShading = 0;
     // 只考虑本列上方的遮荫
@@ -293,7 +295,7 @@ int GameGrid::calculateShadingAt(int row, int col) const {
             if (distanceRows <= props.shadingDepth) {
                 totalShading += props.shadingAmount;
                 if (cell->getType() == AlgaeType::TYPE_A) {
-                    totalShading += 3;
+                    totalShading += 3; // A型藻类额外遮光
                 }
             }
         }
@@ -301,10 +303,8 @@ int GameGrid::calculateShadingAt(int row, int col) const {
     return totalShading;
 }
 
+// 移除藻类时奖励资源
 void GameGrid::applyRemoveBonus(int row, int col) {
-    // Bonus resources when removing algae
-    // Center cell gets more, surrounding cells get less
-
     // Center cell
     if (row >= 0 && row < m_rows && col >= 0 && col < m_cols) {
         m_nitrogen[row][col] += 10;
@@ -324,6 +324,7 @@ void GameGrid::applyRemoveBonus(int row, int col) {
     emit resourcesChanged();
 }
 
+// 初始化网格结构（重新分配单元格对象）
 void GameGrid::initializeGrid() {
     m_cells.resize(m_rows);
 
@@ -341,6 +342,7 @@ void GameGrid::initializeGrid() {
     }
 }
 
+// 初始化资源，包括光照、氮、碳及其恢复速率
 void GameGrid::initializeResources() {
     // 更陡峭的光照梯度（顶部到下方）
     m_baseLight.resize(m_rows);
@@ -379,6 +381,7 @@ void GameGrid::initializeResources() {
     }
 }
 
+// 更新资源（氮、碳）随时间变化
 void GameGrid::updateResources(double deltaTime) {
     // Update nitrogen and carbon based on regen rates and consumption
     for (int row = 0; row < m_rows; ++row) {
@@ -418,6 +421,7 @@ void GameGrid::updateResources(double deltaTime) {
     emit resourcesChanged();
 }
 
+// 计算特殊效果（如B型藻类提升左右格恢复速率）
 void GameGrid::calculateSpecialEffects() {
     // Backup original regen rates
     QVector<QVector<double>> origNitrogenRegen = m_nitrogenRegen;
@@ -448,16 +452,17 @@ void GameGrid::calculateSpecialEffects() {
     }
 }
 
+// 预判种植后某格的光照强度
 double GameGrid::getLightAtIfPlanted(int row, int col, AlgaeType::Type type) const {
-    int simulatedShading = calculateShadingAt(row, col);
+    int simulatedShading = calculateShadingAt(row, col); // 现有遮光
     if (type != AlgaeType::NONE) {
         AlgaeType::Properties props = AlgaeType::getProperties(type);
         for (int d = 1; d <= props.shadingDepth; ++d) {
             int targetRow = row + d;
             if (targetRow < m_rows) {
-                simulatedShading += props.shadingAmount;
+                simulatedShading += props.shadingAmount; // 预加新藻类遮光
             }
         }
     }
-    return m_baseLight[row] - simulatedShading;
+    return m_baseLight[row] - simulatedShading; // 返回预判光照
 }

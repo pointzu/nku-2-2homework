@@ -1,67 +1,68 @@
-#include "mainwindow.h"
-#include <QVBoxLayout>
-#include <QHBoxLayout>
-#include <QGroupBox>
-#include <QKeyEvent>
-#include <QMessageBox>
-#include <QInputDialog>
-#include <QPainter>
-#include <QMouseEvent>
-#include <QEnterEvent>
-#include <QToolTip>
-#include <QColor>
-#include <QFont>
-#include <QStatusBar>
-#include <QSplitter>
-#include <QFrame>
-#include <QTimer>
-#include <QSettings>
-#include<QApplication>
-#include <QPixmap>
-#include <QCursor>
-#include<QPainterPath>
-#include <QtMultimedia/QMediaPlayer>
-#include <QtMultimedia/QAudioOutput>
-#include <QDebug>
-#include <QSoundEffect>
-#include <QMap>
-#include <QTemporaryFile>
-#include <QFile>
-#include <QStandardPaths>
-#include <QDir>
-#include <QUrl>
+#include "mainwindow.h" // 主窗口头文件
+#include <QVBoxLayout>    // 垂直布局
+#include <QHBoxLayout>    // 水平布局
+#include <QGroupBox>      // 分组框
+#include <QKeyEvent>      // 键盘事件
+#include <QMessageBox>    // 消息框
+#include <QInputDialog>   // 输入对话框
+#include <QPainter>       // 绘图
+#include <QMouseEvent>    // 鼠标事件
+#include <QEnterEvent>    // 鼠标进入事件
+#include <QToolTip>       // 工具提示
+#include <QColor>         // 颜色
+#include <QFont>          // 字体
+#include <QStatusBar>     // 状态栏
+#include <QSplitter>      // 分割器
+#include <QFrame>         // 框架
+#include <QTimer>         // 定时器
+#include <QSettings>      // 设置
+#include<QApplication>    // 应用程序
+#include <QPixmap>        // 图片
+#include <QCursor>        // 鼠标指针
+#include<QPainterPath>    // 绘图路径
+#include <QtMultimedia/QMediaPlayer> // 多媒体播放器
+#include <QtMultimedia/QAudioOutput> // 音频输出
+#include <QDebug>         // 调试输出
+#include <QSoundEffect>   // 音效
+#include <QMap>           // 字典
+#include <QTemporaryFile> // 临时文件
+#include <QFile>          // 文件
+#include <QStandardPaths> // 标准路径
+#include <QDir>           // 目录
+#include <QUrl>           // URL
 
-// CellWidget Implementation
+// =================== CellWidget实现部分 ===================
+// 游戏胜利时的处理函数
 void MainWindow::onGameWon() {
-    if (m_hasShownWinMsg) {
+    if (m_hasShownWinMsg) { // 已弹出胜利提示则不再弹出
         return;
     }
     m_hasShownWinMsg = true;
-    playEffect("victory.wav");
+    playEffect("victory.wav"); // 播放胜利音效
     // 评分计算
-    double carb = m_game->getResources()->getCarbohydrates();
-    double lipid = m_game->getResources()->getLipids();
-    double pro = m_game->getResources()->getProteins();
-    double vit = m_game->getResources()->getVitamins();
-    double cr = m_game->getResources()->getCarbRate();
-    double lr = m_game->getResources()->getLipidRate();
-    double pr = m_game->getResources()->getProRate();
-    double vr = m_game->getResources()->getVitRate();
-    // 得分上限后只与速率相关
+    double carb = m_game->getResources()->getCarbohydrates(); // 当前糖类
+    double lipid = m_game->getResources()->getLipids();       // 当前脂质
+    double pro = m_game->getResources()->getProteins();       // 当前蛋白质
+    double vit = m_game->getResources()->getVitamins();       // 当前维生素
+    double cr = m_game->getResources()->getCarbRate();        // 糖类速率
+    double lr = m_game->getResources()->getLipidRate();       // 脂质速率
+    double pr = m_game->getResources()->getProRate();         // 蛋白质速率
+    double vr = m_game->getResources()->getVitRate();         // 维生素速率
+    // 资源得分和速率得分
     double resourceScore = (carb/500.0 + lipid/300.0 + pro/200.0 + vit/100.0) / 4.0 * 50.0;
     double rateScore = (cr/50.0 + lr/30.0 + pr/20.0 + vr/10.0) / 4.0 * 50.0;
     int totalScore = static_cast<int>(resourceScore + rateScore + 0.5);
-    if (totalScore >= 100) {
+    if (totalScore >= 100) { // 满分后只看速率
         resourceScore = 0.0;
         totalScore = static_cast<int>(rateScore + 0.5);
     }
     // 检查是否完全达标
     bool isFullWin = m_game->getResources()->checkWinCondition();
     if (!isFullWin) {
-        totalScore /= 2;
+        totalScore /= 2; // 未完全达标分数减半
     }
-    if (totalScore > m_highScore) m_highScore = totalScore;
-    updateScoreBar();
+    if (totalScore > m_highScore) m_highScore = totalScore; // 更新最高分
+    updateScoreBar(); // 刷新分数栏
     // 弹窗提示
     QString msg = tr("恭喜! 你已经成功建立了一个高效且可持续发展的藻类生态系统!\n\n"
         "你的最终成绩:\n"
@@ -82,41 +83,44 @@ void MainWindow::onGameWon() {
     if (!isFullWin) {
         msg += "\n注意：未完全达标，分数已减半。";
     }
-    QMessageBox::information(this, tr("胜利!"), msg);
+    QMessageBox::information(this, tr("胜利!"), msg); // 弹出胜利提示
 }
 
+// 键盘按下事件处理
 void MainWindow::keyPressEvent(QKeyEvent *event) {
-    if (event->key() == Qt::Key_Escape) {
+    if (event->key() == Qt::Key_Escape) { // 按ESC打开菜单
         showGameMenu();
         unsetCursor(); // 恢复默认指针
     }
     if (event->key() == Qt::Key_Shift || event->key() == Qt::Key_Space) {
         if (!m_showShadingPreview) {
             m_showShadingPreview = true;
-            updateGridDisplay();
+            updateGridDisplay(); // 显示遮荫预览
         }
     }
-    QMainWindow::keyPressEvent(event);
+    QMainWindow::keyPressEvent(event); // 继续父类处理
 }
 
+// 键盘释放事件处理
 void MainWindow::keyReleaseEvent(QKeyEvent *event) {
     if (event->key() == Qt::Key_Shift || event->key() == Qt::Key_Space) {
         if (m_showShadingPreview) {
             m_showShadingPreview = false;
-            updateGridDisplay();
+            updateGridDisplay(); // 关闭遮荫预览
         }
     }
     QMainWindow::keyReleaseEvent(event);
 }
 
+// 显示游戏菜单
 void MainWindow::showGameMenu() {
-    bool wasRunning = m_game->isGameRunning();
+    bool wasRunning = m_game->isGameRunning(); // 记录游戏是否在运行
     if (wasRunning) {
-        playEffect("qrc:/resources/pause.wav");
-        m_game->pauseGame();
+        playEffect("qrc:/resources/pause.wav"); // 播放暂停音效
+        m_game->pauseGame(); // 暂停游戏
     }
 
-    // Show game menu
+    // 创建弹出菜单
     QMenu popupMenu(this);
     QAction* continueAction = nullptr;
 
@@ -129,27 +133,28 @@ void MainWindow::showGameMenu() {
     popupMenu.addSeparator();
     QAction* exitAction = popupMenu.addAction(tr("退出"));
 
-    QAction* selectedAction = popupMenu.exec(QCursor::pos());
+    QAction* selectedAction = popupMenu.exec(QCursor::pos()); // 在鼠标处弹出
 
     if (selectedAction == continueAction) {
-        m_game->startGame(); // Resume game
+        m_game->startGame(); // 继续游戏
     } else if (selectedAction == restartAction) {
         restartGame();
     } else if (selectedAction == settingsAction) {
         showSettingsDialog();
         if (wasRunning) {
-            m_game->startGame(); // Resume game after settings
+            m_game->startGame(); // 设置后继续
         }
     } else if (selectedAction == exitAction) {
         exitGame();
     } else if (wasRunning) {
-        // If menu was canceled but game was running, resume it
+        // 菜单取消但游戏原本在运行，恢复
         m_game->startGame();
     }
 }
 
+// 重新开始游戏
 void MainWindow::restartGame() {
-    // Ask for confirmation if game is in progress
+    // 游戏进行中需确认
     if (m_game->isGameRunning()) {
         if (QMessageBox::question(this, tr("重新开始?"),
                                   tr("确定要重新开始游戏吗? 当前进度将丢失。"),
@@ -158,12 +163,12 @@ void MainWindow::restartGame() {
         }
     }
 
-    // Reset game
+    // 重置游戏
     m_game->resetGame();
     m_game->startGame();
     m_hasShownWinMsg = false; // 允许新一轮通关弹窗
 
-    // Update UI
+    // 刷新UI
     updateGridDisplay();
     onResourcesChanged();
     onProductionRatesChanged();
@@ -171,8 +176,9 @@ void MainWindow::restartGame() {
     statusBar()->showMessage(tr("游戏已重新开始"), 2000);
 }
 
+// 退出游戏
 void MainWindow::exitGame() {
-    // Ask for confirmation if game is in progress
+    // 游戏进行中需确认
     if (m_game->isGameRunning()) {
         if (QMessageBox::question(this, tr("退出游戏?"),
                                   tr("确定要退出游戏吗? 未保存的进度将丢失。"),
@@ -181,28 +187,29 @@ void MainWindow::exitGame() {
         }
     }
 
-    // Save settings
+    // 保存设置
     QSettings settings("AlgaeGame", "Settings");
     // settings.setValue("MusicVolume", m_game->getMusic());
     // settings.setValue("SFXVolume", m_game->getSoundEffects());
 
-    // Close application
+    // 关闭应用
     QApplication::quit();
 }
 
+// 显示设置对话框
 void MainWindow::showSettingsDialog() {
-    // Pause game
+    // 暂停游戏
     bool wasRunning = m_game->isGameRunning();
     if (wasRunning) {
         m_game->pauseGame();
     }
 
-    // Create dialog
+    // 创建对话框
     QDialog dialog(this);
     dialog.setWindowTitle(tr("游戏设置"));
     QVBoxLayout* layout = new QVBoxLayout(&dialog);
 
-    // Music volume
+    // 背景音乐音量
     QHBoxLayout* musicLayout = new QHBoxLayout();
     QLabel* musicLabel = new QLabel(tr("背景音乐音量:"));
     QSlider* musicSlider = new QSlider(Qt::Horizontal);
@@ -221,7 +228,7 @@ void MainWindow::showSettingsDialog() {
     musicLayout->addWidget(musicSlider);
     musicLayout->addWidget(musicValueLabel);
 
-    // Sound effects volume
+    // 音效音量
     QHBoxLayout* sfxLayout = new QHBoxLayout();
     QLabel* sfxLabel = new QLabel(tr("音效音量:"));
     QSlider* sfxSlider = new QSlider(Qt::Horizontal);
@@ -231,28 +238,28 @@ void MainWindow::showSettingsDialog() {
     sfxSlider->setValue(static_cast<int>(m_effectAudio->volume() * 100));
     sfxValueLabel->setText(QString::number(sfxSlider->value()));
 
-    connect(sfxSlider, &QSlider::valueChanged, [sfxValueLabel](int value) {
+    connect(sfxSlider, &QSlider::valueChanged, [sfxValueLabel, this](int value) {
         sfxValueLabel->setText(QString::number(value));
-        // 不做任何音量设置
+        m_effectAudio->setVolume(value / 100.0);
     });
 
     sfxLayout->addWidget(sfxLabel);
     sfxLayout->addWidget(sfxSlider);
     sfxLayout->addWidget(sfxValueLabel);
 
-    // Dialog buttons
+    // 对话框按钮
     QDialogButtonBox* buttonBox = new QDialogButtonBox(
         QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
 
     connect(buttonBox, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
     connect(buttonBox, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
 
-    // Add widgets to layout
+    // 添加控件到布局
     layout->addLayout(musicLayout);
     layout->addLayout(sfxLayout);
     layout->addWidget(buttonBox);
 
-    // Show dialog
+    // 显示对话框
     if (dialog.exec() == QDialog::Accepted) {
         // 只保存设置，不再重复设置音量
         QSettings settings("AlgaeGame", "Settings");
@@ -260,11 +267,12 @@ void MainWindow::showSettingsDialog() {
         settings.setValue("SFXVolume", sfxSlider->value());
     }
 
-    // Resume game if it was running before
+    // 恢复游戏
     if (wasRunning) {
         m_game->startGame();
     }
 }
+
 CellWidget::CellWidget(int row, int col, QWidget* parent)
     : QWidget(parent)
     , m_row(row)
@@ -517,38 +525,38 @@ void CellWidget::leaveEvent(QEvent* event) {
     QWidget::leaveEvent(event);
 }
 
-// MainWindow Implementation
+// =================== MainWindow实现部分 ===================
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
 {
-    m_progressBar = new QProgressBar(this);
-    m_lblCarb = new QLabel(this);
-    m_lblLipid = new QLabel(this);
-    m_lblPro = new QLabel(this);
-    m_lblVit = new QLabel(this);
-    m_lblCarbRate = new QLabel(this);
-    m_lblLipidRate = new QLabel(this);
-    m_lblProRate = new QLabel(this);
-    m_lblVitRate = new QLabel(this);
-    m_btnTypeA = new QPushButton("小型藻类 A", this);
-    m_btnTypeB = new QPushButton("小型藻类 B", this);
-    m_btnTypeC = new QPushButton("小型藻类 C", this);
-    m_iconTypeA = new QLabel(this);
-    m_iconTypeB = new QLabel(this);
-    m_iconTypeC = new QLabel(this);
-    m_cellsLayout = new QGridLayout();
-    m_game = new AlgaeGame(this);
-    m_gridLayout = new QGridLayout();
-    m_scoreLabel = new QLabel(this);
-    m_winConditionGroup = new QGroupBox(this);
-    m_lblCarbCond = new QLabel(this);
-    m_lblLipidCond = new QLabel(this);
-    m_lblProCond = new QLabel(this);
-    m_lblVitCond = new QLabel(this);
-    m_lblCarbRateCond = new QLabel(this);
-    m_lblLipidRateCond = new QLabel(this);
-    m_lblProRateCond = new QLabel(this);
-    m_lblVitRateCond = new QLabel(this);
+    m_progressBar = new QProgressBar(this); // 进度条
+    m_lblCarb = new QLabel(this);           // 糖类标签
+    m_lblLipid = new QLabel(this);          // 脂质标签
+    m_lblPro = new QLabel(this);            // 蛋白质标签
+    m_lblVit = new QLabel(this);            // 维生素标签
+    m_lblCarbRate = new QLabel(this);       // 糖类速率标签
+    m_lblLipidRate = new QLabel(this);      // 脂质速率标签
+    m_lblProRate = new QLabel(this);        // 蛋白质速率标签
+    m_lblVitRate = new QLabel(this);        // 维生素速率标签
+    m_btnTypeA = new QPushButton("小型藻类 A", this); // A型按钮
+    m_btnTypeB = new QPushButton("小型藻类 B", this); // B型按钮
+    m_btnTypeC = new QPushButton("小型藻类 C", this); // C型按钮
+    m_iconTypeA = new QLabel(this); // A型图标
+    m_iconTypeB = new QLabel(this); // B型图标
+    m_iconTypeC = new QLabel(this); // C型图标
+    m_cellsLayout = new QGridLayout(); // 网格布局
+    m_game = new AlgaeGame(this);      // 游戏主逻辑
+    m_gridLayout = new QGridLayout();  // 主网格布局
+    m_scoreLabel = new QLabel(this);   // 分数栏
+    m_winConditionGroup = new QGroupBox(this); // 胜利条件分组
+    m_lblCarbCond = new QLabel(this);  // 糖类条件
+    m_lblLipidCond = new QLabel(this); // 脂质条件
+    m_lblProCond = new QLabel(this);   // 蛋白质条件
+    m_lblVitCond = new QLabel(this);   // 维生素条件
+    m_lblCarbRateCond = new QLabel(this); // 糖类速率条件
+    m_lblLipidRateCond = new QLabel(this); // 脂质速率条件
+    m_lblProRateCond = new QLabel(this);   // 蛋白质速率条件
+    m_lblVitRateCond = new QLabel(this);   // 维生素速率条件
     // 初始化鼠标指针
     QPixmap pixA(":/resources/st30f0n665joahrrvuj05fechvwkcv10/type_a.png");
     QPixmap pixB(":/resources/st30f0n665joahrrvuj05fechvwkcv10/type_b.png");
@@ -559,35 +567,36 @@ MainWindow::MainWindow(QWidget *parent)
     m_iconTypeA->setPixmap(pixA.scaled(24,24,Qt::KeepAspectRatio,Qt::SmoothTransformation));
     m_iconTypeB->setPixmap(pixB.scaled(24,24,Qt::KeepAspectRatio,Qt::SmoothTransformation));
     m_iconTypeC->setPixmap(pixC.scaled(24,24,Qt::KeepAspectRatio,Qt::SmoothTransformation));
-    m_bgmPlayer = new QMediaPlayer(this);
-    m_bgmAudio = new QAudioOutput(this);
+    m_bgmPlayer = new QMediaPlayer(this); // 背景音乐播放器
+    m_bgmAudio = new QAudioOutput(this);  // 背景音乐输出
     m_bgmPlayer->setAudioOutput(m_bgmAudio);
     m_bgmPlayer->setLoops(QMediaPlayer::Infinite);
     m_bgmAudio->setVolume(1.0);
-    m_effectPlayer = new QMediaPlayer(this);
-    m_effectAudio = new QAudioOutput(this);
+    m_effectPlayer = new QMediaPlayer(this); // 音效播放器
+    m_effectAudio = new QAudioOutput(this);  // 音效输出
     m_effectPlayer->setAudioOutput(m_effectAudio);
     m_effectAudio->setVolume(1.0);
     m_lastBgmProgress = -1.0;
     m_soundEffects.clear();
-    setupUI();
-    setupGameGrid();
-    setupGameControls();
-    setupResourceDisplay();
-    setupMenus();
-    connectSignals();
-    initializeCellWidgets();
+    setupUI();                // 初始化UI
+    setupGameGrid();          // 初始化网格
+    setupGameControls();      // 初始化控制按钮
+    setupResourceDisplay();   // 初始化资源显示
+    setupMenus();             // 初始化菜单
+    connectSignals();         // 连接信号槽
+    initializeCellWidgets();  // 初始化格子控件
 
-    setWindowTitle(tr("Algae - 水藻培养策略游戏"));
-    setMinimumSize(1024, 768);
+    setWindowTitle(tr("Algae - 水藻培养策略游戏")); // 设置窗口标题
+    setMinimumSize(1024, 768); // 最小尺寸
     showFullScreen(); // 启动全屏
     restartGame(); // 启动自动重开一局
 }
 
 MainWindow::~MainWindow() {
-    // All Qt parent-child relationships will handle deletion
+    // 所有Qt父子关系会自动释放资源
 }
 
+// 初始化UI布局
 void MainWindow::setupUI() {
     // 主窗口三栏分区
     QWidget* central = new QWidget(this);
@@ -755,34 +764,37 @@ void MainWindow::setupUI() {
     mainLayout->addWidget(rightPanel, 2);
 }
 
+// =================== CellWidget初始化与信号连接 ===================
 void MainWindow::initializeCellWidgets() {
-    m_cellWidgets.resize(m_game && m_game->getGrid() ? m_game->getGrid()->getRows() : 0);
+    m_cellWidgets.resize(m_game && m_game->getGrid() ? m_game->getGrid()->getRows() : 0); // 按行数分配
     for (int row = 0; m_game && m_game->getGrid() && row < m_game->getGrid()->getRows(); ++row) {
-        m_cellWidgets[row].resize(m_game->getGrid()->getCols());
+        m_cellWidgets[row].resize(m_game->getGrid()->getCols()); // 按列数分配
         for (int col = 0; col < m_game->getGrid()->getCols(); ++col) {
-            CellWidget* cellWidget = new CellWidget(row, col, this);
+            CellWidget* cellWidget = new CellWidget(row, col, this); // 创建格子控件
             m_cellWidgets[row][col] = cellWidget;
-            AlgaeCell* algaeCell = m_game->getGrid()->getCell(row, col);
+            AlgaeCell* algaeCell = m_game->getGrid()->getCell(row, col); // 获取对应数据单元格
             if (algaeCell) {
-                cellWidget->setAlgaeCell(algaeCell);
-                m_cellsLayout->addWidget(cellWidget, row, col);
-                connect(cellWidget, &CellWidget::leftClicked, this, &MainWindow::onCellClicked);
-                connect(cellWidget, &CellWidget::rightClicked, this, &MainWindow::onCellRightClicked);
+                cellWidget->setAlgaeCell(algaeCell); // 绑定数据
+                m_cellsLayout->addWidget(cellWidget, row, col); // 加入布局
+                connect(cellWidget, &CellWidget::leftClicked, this, &MainWindow::onCellClicked); // 左键点击
+                connect(cellWidget, &CellWidget::rightClicked, this, &MainWindow::onCellRightClicked); // 右键点击
                 connect(algaeCell, &AlgaeCell::cellChanged, this, [this, row, col]() {
-                    updateCellDisplay(row, col);
+                    updateCellDisplay(row, col); // 数据变化时刷新显示
                 });
             }
         }
     }
 }
 
+// 初始化网格（数据相关）
 void MainWindow::setupGameGrid() {
     // 此处不再new m_cellsLayout和m_gridLayout，也不再添加布局，只做数据相关初始化（如有需要可保留数据相关代码）
     // m_cellsLayout和m_gridLayout的初始化和布局已在setupUI中完成
 }
 
+// 初始化控制按钮逻辑
 void MainWindow::setupGameControls() {
-    // Connect algae type selection buttons
+    // 连接藻类选择按钮
     connect(m_btnTypeA, &QPushButton::clicked, [this]() {
         m_game->setSelectedAlgaeType(AlgaeType::TYPE_A);
         updateSelectedAlgaeButton();
@@ -798,63 +810,67 @@ void MainWindow::setupGameControls() {
         updateSelectedAlgaeButton();
         setCursor(m_cursorTypeC);
     });
-    // Set initial selection
+    // 默认选中A型
     m_game->setSelectedAlgaeType(AlgaeType::TYPE_A);
     updateSelectedAlgaeButton();
     setCursor(m_cursorTypeA);
 }
 
+// 初始化资源与速率显示
 void MainWindow::setupResourceDisplay() {
     onResourcesChanged();
     onProductionRatesChanged();
 
-    // Setup timer for win progress updates
+    // 定时刷新通关进度
     QTimer* progressTimer = new QTimer(this);
     connect(progressTimer, &QTimer::timeout, this, &MainWindow::updateWinProgress);
-    progressTimer->start(500); // Update every half second
+    progressTimer->start(500); // 每0.5秒刷新
 }
 
+// 初始化菜单
 void MainWindow::setupMenus() {
-    // Create main menu
+    // 创建主菜单
     m_gameMenu = menuBar()->addMenu(tr("游戏"));
 
-    // Create menu actions
+    // 创建菜单动作
     m_restartAction = new QAction(tr("重新开始"), this);
     m_settingsAction = new QAction(tr("设置"), this);
     m_exitAction = new QAction(tr("退出"), this);
 
-    // Add actions to menu
+    // 添加动作到菜单
     m_gameMenu->addAction(m_restartAction);
     m_gameMenu->addAction(m_settingsAction);
     m_gameMenu->addSeparator();
     m_gameMenu->addAction(m_exitAction);
 
-    // Connect menu actions
+    // 连接菜单动作
     connect(m_restartAction, &QAction::triggered, this, &MainWindow::restartGame);
     connect(m_settingsAction, &QAction::triggered, this, &MainWindow::showSettingsDialog);
     connect(m_exitAction, &QAction::triggered, this, &MainWindow::exitGame);
 }
 
+// 连接信号槽
 void MainWindow::connectSignals() {
-    // Connect game state signals
+    // 游戏状态信号
     connect(m_game, &AlgaeGame::gameStateChanged, this, &MainWindow::onGameStateChanged);
     connect(m_game, &AlgaeGame::selectedAlgaeChanged, this, &MainWindow::updateSelectedAlgaeButton);
     connect(m_game, &AlgaeGame::gameWon, this, &MainWindow::onGameWon);
 
-    // Connect resource signals
+    // 资源信号
     connect(m_game->getResources(), &GameResources::resourcesChanged, this, &MainWindow::onResourcesChanged);
     connect(m_game->getResources(),&GameResources::productionRatesChanged, this, &MainWindow::onProductionRatesChanged);
-    // Connect grid update signal
+    // 网格刷新信号
     connect(m_game->getGrid(), &GameGrid::gridUpdated, this, &MainWindow::updateGridDisplay);
 }
 
+// 刷新选中藻类按钮样式
 void MainWindow::updateSelectedAlgaeButton() {
-    // Reset button styles
+    // 重置按钮样式
     m_btnTypeA->setStyleSheet("");
     m_btnTypeB->setStyleSheet("");
     m_btnTypeC->setStyleSheet("");
 
-    // Set the selected button style
+    // 设置选中按钮样式
     QString selectedStyle = "background-color: rgba(255, 255, 100, 180); border: 2px solid black;";
 
     switch (m_game->getSelectedAlgaeType()) {
@@ -872,15 +888,17 @@ void MainWindow::updateSelectedAlgaeButton() {
     }
 }
 
+// 刷新整个网格显示
 void MainWindow::updateGridDisplay() {
     if (!m_game || !m_game->getGrid()) return;
     for (int row = 0; row < m_game->getGrid()->getRows(); ++row) {
         for (int col = 0; col < m_game->getGrid()->getCols(); ++col) {
-            updateCellDisplay(row, col);
+            updateCellDisplay(row, col); // 刷新每个格子
         }
     }
 }
 
+// 刷新单个格子显示
 void MainWindow::updateCellDisplay(int row, int col) {
     if (!m_game || !m_game->getGrid()) return;
     if (row < m_cellWidgets.size() && col < m_cellWidgets[row].size()) {
@@ -889,6 +907,7 @@ void MainWindow::updateCellDisplay(int row, int col) {
     }
 }
 
+// 显示单元格信息到状态栏和气泡
 void MainWindow::displayCellInfo(int row, int col) {
     if (!m_game || !m_game->getGrid()) return;
     GameGrid* grid = m_game->getGrid();
@@ -904,11 +923,12 @@ void MainWindow::displayCellInfo(int row, int col) {
     }
 }
 
+// 播放音效（临时播放器）
 void MainWindow::playSoundEffect(const QString& resource) {
     auto player = new QMediaPlayer(this);
     auto audio = new QAudioOutput(this);
     player->setAudioOutput(audio);
-    audio->setVolume(1.0); // 固定最大音量
+    audio->setVolume(1.0);
     player->setSource(QUrl(resource));
     player->play();
     connect(player, &QMediaPlayer::mediaStatusChanged, player, [player, audio](QMediaPlayer::MediaStatus status){
@@ -919,29 +939,32 @@ void MainWindow::playSoundEffect(const QString& resource) {
     });
 }
 
+// 单元格左键点击事件
 void MainWindow::onCellClicked(int row, int col) {
     bool success = m_game->plantAlgae(row, col);
     if (success) {
         statusBar()->showMessage(tr("放置藻类在 (%1,%2)").arg(row).arg(col), 2000);
-        playEffect("planted.mp3");
+        playSoundEffect("qrc:/resources/planted.mp3");
     } else {
-        playEffect("buzzer.wav");
+        playSoundEffect("qrc:/resources/buzzer.wav");
     }
     updateCellDisplay(row, col);
 }
 
+// 单元格右键点击事件
 void MainWindow::onCellRightClicked(int row, int col) {
     bool success = m_game->removeAlgae(row, col);
     if (success) {
-        playEffect("displant.wav");
+        playSoundEffect("qrc:/resources/displant.wav");
         statusBar()->showMessage(tr("移除藻类，恢复周围资源"), 2000);
     } else {
-        playEffect("buzzer.wav");
+        playSoundEffect("qrc:/resources/buzzer.wav");
     }
 }
 
+// 游戏状态变化槽
 void MainWindow::onGameStateChanged() {
-    // Update UI based on game state
+    // 根据游戏状态刷新UI
     if (m_game->isGameRunning()) {
         statusBar()->showMessage(tr("游戏进行中"), 2000);
     } else {
@@ -949,6 +972,7 @@ void MainWindow::onGameStateChanged() {
     }
 }
 
+// 资源变化槽
 void MainWindow::onResourcesChanged() {
     GameResources* resources = m_game->getResources();
     // 目标值
@@ -977,6 +1001,7 @@ void MainWindow::onResourcesChanged() {
     onProductionRatesChanged();
 }
 
+// 生产速率变化槽
 void MainWindow::onProductionRatesChanged() {
     GameResources* resources = m_game->getResources();
     // 目标速率
@@ -999,11 +1024,12 @@ void MainWindow::onProductionRatesChanged() {
     m_lblVitRate->setStyleSheet(rateStyle(vr >= TARGET_VIT_RATE));
 }
 
+// 刷新通关进度条
 void MainWindow::updateWinProgress() {
     double progress = m_game->getResources()->getWinProgress();
     m_progressBar->setValue(static_cast<int>(progress * 100));
     playBGM(progress);
-    // Change color based on progress
+    // 根据进度改变颜色
     QString styleSheet;
     if (progress < 0.3) {
         styleSheet = "QProgressBar { text-align: center; } QProgressBar::chunk { background-color: #ff3333; }";
@@ -1052,6 +1078,7 @@ void MainWindow::updateWinConditionLabels() {
     setLabel(m_lblVitRateCond, vr, TARGET_VIT_RATE, "维生素速率");
 }
 
+// 刷新分数栏
 void MainWindow::updateScoreBar() {
     // 评分公式与onGameWon一致
     double carb = m_game->getResources()->getCarbohydrates();
@@ -1093,6 +1120,7 @@ void MainWindow::updateScoreBar() {
     m_scoreDetailLabel->setText(detail);
 }
 
+// 播放背景音乐，根据进度切换曲目
 void MainWindow::playBGM(double progress) {
     int bgmType = (progress < 0.5) ? 1 : 2;
     if ((m_lastBgmProgress < 0.5 && progress >= 0.5) || (m_lastBgmProgress >= 0.5 && progress < 0.5) || m_lastBgmProgress < 0) {
@@ -1106,7 +1134,10 @@ void MainWindow::playBGM(double progress) {
     m_lastBgmProgress = progress;
 }
 
+// 播放音效（主播放器）
 void MainWindow::playEffect(const QString& name) {
     QString path = "qrc:/resources/st30f0n665joahrrvuj05fechvwkcv10/" + name;
-    playSoundEffect(path);
+    qDebug() << "QMediaPlayer播放音效(最终路径):" << path;
+    m_effectPlayer->setSource(QUrl(path));
+    m_effectPlayer->play();
 }

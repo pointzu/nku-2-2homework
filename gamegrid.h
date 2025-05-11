@@ -7,6 +7,7 @@
 #include "algaecell.h"
 #include "algaetype.h"
 
+// 游戏网格类，继承自QWidget
 class GameGrid : public QWidget {
     Q_OBJECT
 

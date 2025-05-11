@@ -1,27 +1,28 @@
-#include "algaegame.h"
-#include "mainwindow.h"
-#include <QDateTime>
+#include "algaegame.h"      // 游戏主逻辑头文件
+#include "mainwindow.h"     // 主窗口头文件
+#include <QDateTime>         // Qt时间类
 
+// AlgaeGame构造函数，初始化成员变量和游戏网格、资源
 AlgaeGame::AlgaeGame(QWidget* parent)
     : QObject(parent)
-    , m_grid(new GameGrid(parent))
-    , m_resources(new GameResources(this))
-    , m_selectedAlgaeType(AlgaeType::NONE)
-    , m_isGameRunning(false)
-    , m_updateTimer(new QTimer(this))
-    , m_lastUpdateTime(QDateTime::currentMSecsSinceEpoch())
+    , m_grid(new GameGrid(parent)) // 创建游戏网格
+    , m_resources(new GameResources(this)) // 创建资源管理器
+    , m_selectedAlgaeType(AlgaeType::NONE) // 初始无选中藻类
+    , m_isGameRunning(false) // 游戏初始为暂停
+    , m_updateTimer(new QTimer(this)) // 创建定时器
+    , m_lastUpdateTime(QDateTime::currentMSecsSinceEpoch()) // 记录当前时间
 {
-    // 初始化游戏
+    // 初始化游戏网格，10行8列
     m_grid->initialize(10, 8);  // 10行8列的网格
     
-    // 连接信号
+    // 连接网格信号到游戏槽函数
     connect(m_grid, &GameGrid::gridChanged, this, &AlgaeGame::onGridChanged);
     connect(m_grid, &GameGrid::resourcesChanged, this, &AlgaeGame::onResourcesChanged);
     connect(m_grid, &GameGrid::cellClicked, this, [this](int row, int col) {
         if (m_selectedAlgaeType != AlgaeType::NONE) {
-            plantAlgae(row, col);
+            plantAlgae(row, col); // 有选中藻类则种植
         } else {
-            removeAlgae(row, col);
+            removeAlgae(row, col); // 否则移除
         }
     });
     
@@ -35,39 +36,43 @@ AlgaeGame::AlgaeGame(QWidget* parent)
         }
     }
     
-    // 设置定时器
+    // 设置定时器，200ms刷新一次
     m_updateTimer->setInterval(200);  // 200ms 刷新一次
     connect(m_updateTimer, &QTimer::timeout, this, &AlgaeGame::update);
 }
 
+// 析构函数，停止定时器
 AlgaeGame::~AlgaeGame() {
-    // Stop the timer
     m_updateTimer->stop();
 }
 
+// 设置当前选中的藻类类型
 void AlgaeGame::setSelectedAlgaeType(AlgaeType::Type type) {
     if (m_selectedAlgaeType != type) {
         m_selectedAlgaeType = type;
-        emit selectedAlgaeChanged();
+        emit selectedAlgaeChanged(); // 通知UI
     }
 }
 
+// 开始游戏，启动定时器
 void AlgaeGame::startGame() {
     if (!m_isGameRunning) {
         m_isGameRunning = true;
         m_updateTimer->start();
-        emit gameStateChanged();
+        emit gameStateChanged(); // 通知UI
     }
 }
 
+// 暂停游戏，停止定时器
 void AlgaeGame::pauseGame() {
     if (m_isGameRunning) {
         m_isGameRunning = false;
         m_updateTimer->stop();
-        emit gameStateChanged();
+        emit gameStateChanged(); // 通知UI
     }
 }
 
+// 重置游戏，重置网格和资源，恢复初始状态
 void AlgaeGame::resetGame() {
     pauseGame();
 
@@ -82,6 +87,7 @@ void AlgaeGame::resetGame() {
     emit gameStateChanged();
 }
 
+// 在指定位置种植藻类
 bool AlgaeGame::plantAlgae(int row, int col) {
     if (!m_isGameRunning || m_selectedAlgaeType == AlgaeType::NONE) {
         return false;
@@ -116,6 +122,7 @@ bool AlgaeGame::plantAlgae(int row, int col) {
     return false;
 }
 
+// 移除指定位置的藻类
 bool AlgaeGame::removeAlgae(int row, int col) {
     if (!m_isGameRunning) {
         return false;
@@ -140,6 +147,7 @@ bool AlgaeGame::removeAlgae(int row, int col) {
 //     m_soundEffectsVolume = qBound(0, volume, 100);
 // }
 
+// 游戏主循环，每帧调用
 void AlgaeGame::update() {
     if (!m_isGameRunning) {
         return;
@@ -161,6 +169,7 @@ void AlgaeGame::update() {
     emit m_resources->resourcesChanged();
 }
 
+// 计算所有单元格的生产速率总和，并更新资源
 void AlgaeGame::updateProductionRates() {
     // Calculate total production rates from all cells
     double totalCarb = 0.0;
@@ -187,6 +196,7 @@ void AlgaeGame::updateProductionRates() {
     m_resources->setVitRate(totalVit);
 }
 
+// 网格变化时自动刷新生产速率和胜利判定
 void AlgaeGame::onGridChanged() {
     // 更新资源生产速率
     updateProductionRates();
@@ -198,6 +208,7 @@ void AlgaeGame::onGridChanged() {
     }
 }
 
+// 资源变化时通知UI
 void AlgaeGame::onResourcesChanged() {
     // 更新UI显示
     emit resourcesUpdated();
