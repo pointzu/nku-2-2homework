@@ -124,5 +124,7 @@
         <file>../resources/newdisplant.wav</file>
         <file>../resources/buzzer_fixed.wav</file>
         <file>../resources/displant_fixed.wav</file>
+        <file>../resources/st30f0n665joahrrvuj05fechvwkcv10/type_d.png</file>
+        <file>../resources/st30f0n665joahrrvuj05fechvwkcv10/type_e.png</file>
     </qresource>
 </RCC>

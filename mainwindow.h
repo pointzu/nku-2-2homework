@@ -18,6 +18,7 @@
 #include <QtMultimedia/QAudioOutput> // 音频输出
 #include <QSoundEffect>   // 音效
 #include <QMap>           // Qt字典
+#include <QScrollArea>    // 滚动区域
 
 class CellWidget; // 前置声明，格子控件
 
@@ -49,6 +50,7 @@ private slots:
     void showSettingsDialog();                   // 显示设置对话框
     void updateWinProgress();                    // 刷新通关进度
     void onGameWon();                            // 游戏胜利槽
+    void showTraitDetailDialog();                 // 显示详细特性说明弹窗
 
 private:
     AlgaeGame* m_game; // 游戏主逻辑指针
@@ -63,6 +65,8 @@ private:
     QPushButton* m_btnTypeA; // 选择A型藻类
     QPushButton* m_btnTypeB; // 选择B型藻类
     QPushButton* m_btnTypeC; // 选择C型藻类
+    QPushButton* m_btnTypeD; // 选择D型藻类
+    QPushButton* m_btnTypeE;
 
     // 资源显示
     QLabel* m_lblCarb;   // 糖类
@@ -100,10 +104,14 @@ private:
     QLabel* m_iconTypeA; // A型图标
     QLabel* m_iconTypeB; // B型图标
     QLabel* m_iconTypeC; // C型图标
+    QLabel* m_iconTypeD; // D型图标
+    QLabel* m_iconTypeE;
     // 藻类鼠标指针
     QCursor m_cursorTypeA; // A型指针
     QCursor m_cursorTypeB; // B型指针
     QCursor m_cursorTypeC; // C型指针
+    QCursor m_cursorTypeD; // D型指针
+    QCursor m_cursorTypeE;
 
     QLabel* m_scoreLabel; // 实时分数栏
     int m_highScore = 0; // 最高分
@@ -121,6 +129,10 @@ private:
 
     QLabel* m_scoreHintLabel;   // 分数评价简介信息栏
     QLabel* m_scoreDetailLabel; // 分数组成详细说明
+
+    QLabel* m_traitInfoLabel; // 植株特性信息栏
+    QScrollArea* m_traitInfoScrollArea; // 特性信息滚动区域
+    QPushButton* m_btnTraitDetail; // 详细特性说明按钮
 
     double m_effectVolume = 1.0; // 新增，音效音量（0.0~1.0）
 

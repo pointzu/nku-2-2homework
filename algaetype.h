@@ -9,7 +9,7 @@
 class AlgaeType {
 public:
     // 藻类类型枚举
-    enum Type { NONE, TYPE_A, TYPE_B, TYPE_C };
+    enum Type { NONE, TYPE_A, TYPE_B, TYPE_C, TYPE_D, TYPE_E };
 
     // 藻类属性结构体
     struct Properties {

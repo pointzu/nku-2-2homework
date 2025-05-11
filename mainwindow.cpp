@@ -31,6 +31,8 @@
 #include <QDir>           // 目录
 #include <QUrl>           // URL
 #include <QTextDocument>  // 文本文档
+#include <QScrollArea>    // 滚动区域
+#include <QPushButton>    // 按钮
 
 // =================== CellWidget实现部分 ===================
 // 游戏胜利时的处理函数
@@ -505,7 +507,7 @@ void CellWidget::paintEvent(QPaintEvent* event) {
 
     // --- 藻类特性可视化 ---
     if (m_cell) {
-        // A型相邻减产：左上角红色圆底白色粗体“-”
+        // A型相邻减产：左上角红色圆底白色粗体"-"
         if (m_cell->getType() == AlgaeType::TYPE_A && m_cell->isReducedByNeighborA()) {
             painter.save();
             int r = 18;
@@ -518,7 +520,7 @@ void CellWidget::paintEvent(QPaintEvent* event) {
             painter.drawText(markRect, Qt::AlignCenter, "-");
             painter.restore();
         }
-        // B型被加速：右上角绿色圆底白色粗体“+”
+        // B型被加速：右上角绿色圆底白色粗体"+"
         if (m_cell->isBoostedByNeighborB()) {
             painter.save();
             int r = 18;
@@ -531,7 +533,7 @@ void CellWidget::paintEvent(QPaintEvent* event) {
             painter.drawText(markRect, Qt::AlignCenter, "+");
             painter.restore();
         }
-        // C型被B减产：右下角黄色圆底黑色粗体“!”
+        // C型被B减产：右下角黄色圆底黑色粗体"!"
         if (m_cell->getType() == AlgaeType::TYPE_C && m_cell->isReducedByNeighborB()) {
             painter.save();
             int r = 18;
@@ -542,6 +544,32 @@ void CellWidget::paintEvent(QPaintEvent* event) {
             QFont f = painter.font(); f.setPointSize(14); f.setBold(true); painter.setFont(f);
             painter.setPen(Qt::black);
             painter.drawText(markRect, Qt::AlignCenter, "!");
+            painter.restore();
+        }
+        // D型被协同：左下角蓝色圆底白色粗体"★"
+        if (m_cell->getType() == AlgaeType::TYPE_D && m_cell->isSynergizingNeighbor()) {
+            painter.save();
+            int r = 18;
+            QRect markRect(cellRect.left()+2, cellRect.bottom()-r-2, r, r);
+            painter.setBrush(QColor(0,120,255));
+            painter.setPen(Qt::NoPen);
+            painter.drawEllipse(markRect);
+            QFont f = painter.font(); f.setPointSize(14); f.setBold(true); painter.setFont(f);
+            painter.setPen(Qt::white);
+            painter.drawText(markRect, Qt::AlignCenter, "★");
+            painter.restore();
+        }
+        // 被D型协同的A/B/C型：右下角蓝色圆底白色粗体"↑"
+        if (m_cell->isSynergizedByNeighbor() && m_cell->getType() != AlgaeType::TYPE_D) {
+            painter.save();
+            int r = 18;
+            QRect markRect(cellRect.right()-r-2, cellRect.bottom()-r-2, r, r);
+            painter.setBrush(QColor(0,120,255));
+            painter.setPen(Qt::NoPen);
+            painter.drawEllipse(markRect);
+            QFont f = painter.font(); f.setPointSize(14); f.setBold(true); painter.setFont(f);
+            painter.setPen(Qt::white);
+            painter.drawText(markRect, Qt::AlignCenter, "↑");
             painter.restore();
         }
     }
@@ -603,9 +631,13 @@ MainWindow::MainWindow(QWidget *parent)
     m_btnTypeA = new QPushButton("小型藻类 A", this); // A型按钮
     m_btnTypeB = new QPushButton("小型藻类 B", this); // B型按钮
     m_btnTypeC = new QPushButton("小型藻类 C", this); // C型按钮
+    m_btnTypeD = new QPushButton("协同藻类 D", this); // D型按钮
+    m_btnTypeE = new QPushButton("光源藻类 E", this); // E型按钮
     m_iconTypeA = new QLabel(this); // A型图标
     m_iconTypeB = new QLabel(this); // B型图标
     m_iconTypeC = new QLabel(this); // C型图标
+    m_iconTypeD = new QLabel(this); // D型图标
+    m_iconTypeE = new QLabel(this); // E型图标
     m_cellsLayout = new QGridLayout(); // 网格布局
     m_game = new AlgaeGame(this);      // 游戏主逻辑
     m_gridLayout = new QGridLayout();  // 主网格布局
@@ -623,12 +655,18 @@ MainWindow::MainWindow(QWidget *parent)
     QPixmap pixA(":/resources/st30f0n665joahrrvuj05fechvwkcv10/type_a.png");
     QPixmap pixB(":/resources/st30f0n665joahrrvuj05fechvwkcv10/type_b.png");
     QPixmap pixC(":/resources/st30f0n665joahrrvuj05fechvwkcv10/type_c.png");
+    QPixmap pixD(":/resources/st30f0n665joahrrvuj05fechvwkcv10/type_d.png");
+    QPixmap pixE(":/resources/st30f0n665joahrrvuj05fechvwkcv10/type_e.png");
     m_cursorTypeA = QCursor(pixA.scaled(32,32,Qt::KeepAspectRatio,Qt::SmoothTransformation), 0, 0);
     m_cursorTypeB = QCursor(pixB.scaled(32,32,Qt::KeepAspectRatio,Qt::SmoothTransformation), 0, 0);
     m_cursorTypeC = QCursor(pixC.scaled(32,32,Qt::KeepAspectRatio,Qt::SmoothTransformation), 0, 0);
+    m_cursorTypeD = QCursor(pixD.scaled(32,32,Qt::KeepAspectRatio,Qt::SmoothTransformation), 0, 0);
+    m_cursorTypeE = QCursor(pixE.scaled(32,32,Qt::KeepAspectRatio,Qt::SmoothTransformation), 0, 0);
     m_iconTypeA->setPixmap(pixA.scaled(24,24,Qt::KeepAspectRatio,Qt::SmoothTransformation));
     m_iconTypeB->setPixmap(pixB.scaled(24,24,Qt::KeepAspectRatio,Qt::SmoothTransformation));
     m_iconTypeC->setPixmap(pixC.scaled(24,24,Qt::KeepAspectRatio,Qt::SmoothTransformation));
+    m_iconTypeD->setPixmap(pixD.scaled(24,24,Qt::KeepAspectRatio,Qt::SmoothTransformation));
+    m_iconTypeE->setPixmap(pixE.scaled(24,24,Qt::KeepAspectRatio,Qt::SmoothTransformation));
     m_bgmPlayer = new QMediaPlayer(this); // 背景音乐播放器
     m_bgmAudio = new QAudioOutput(this);  // 背景音乐输出
     m_bgmPlayer->setAudioOutput(m_bgmAudio);
@@ -783,7 +821,10 @@ void MainWindow::setupUI() {
     QHBoxLayout* rowA = new QHBoxLayout(); rowA->addWidget(m_iconTypeA); rowA->addWidget(m_btnTypeA);
     QHBoxLayout* rowB = new QHBoxLayout(); rowB->addWidget(m_iconTypeB); rowB->addWidget(m_btnTypeB);
     QHBoxLayout* rowC = new QHBoxLayout(); rowC->addWidget(m_iconTypeC); rowC->addWidget(m_btnTypeC);
+    QHBoxLayout* rowD = new QHBoxLayout(); rowD->addWidget(m_iconTypeD); rowD->addWidget(m_btnTypeD);
+    QHBoxLayout* rowE = new QHBoxLayout(); rowE->addWidget(m_iconTypeE); rowE->addWidget(m_btnTypeE);
     controlLayout->addLayout(rowA); controlLayout->addLayout(rowB); controlLayout->addLayout(rowC);
+    controlLayout->addLayout(rowD); controlLayout->addLayout(rowE);
     rightLayout->addWidget(controlGroup);
     // 藻类说明分组
     QGroupBox* infoA = new QGroupBox("藻类A属性"); infoA->setFont(groupFont);
@@ -822,7 +863,55 @@ void MainWindow::setupUI() {
                       "特性: 与B连接时糖减产</span>");
     lblInfoC->setWordWrap(true); lblInfoC->setStyleSheet("font-size:15px; color:#333;"); infoCLayout->addWidget(lblInfoC);
     rightLayout->addWidget(infoC);
+    QGroupBox* infoD = new QGroupBox("藻类D属性"); infoD->setFont(groupFont);
+    QVBoxLayout* infoDLayout = new QVBoxLayout(infoD);
+    QLabel* lblInfoD = new QLabel();
+    lblInfoD->setTextFormat(Qt::RichText);
+    lblInfoD->setText("<span style='color:#ffeb3b;font-weight:bold'>光照需求: 16/12/8<br>"
+                      "种植消耗: 糖×12, 脂质×8, 蛋白×6, 维生素×6<br>"
+                      "遮光效果: 下方1格, -4<br>"
+                      "消耗: N×1.5/秒, C×7/秒<br>"
+                      "产出: 糖×2.5/秒, 脂质×1.5/秒, 蛋白×1.5/秒, 维生素×1.5/秒<br>"
+                      "特性: 与A/B/C型相邻时协同增益，双方产量+20%</span>");
+    lblInfoD->setWordWrap(true); lblInfoD->setStyleSheet("font-size:15px; color:#333;"); infoDLayout->addWidget(lblInfoD);
+    rightLayout->addWidget(infoD);
+    QGroupBox* infoE = new QGroupBox("藻类E属性"); infoE->setFont(groupFont);
+    QVBoxLayout* infoELayout = new QVBoxLayout(infoE);
+    QLabel* lblInfoE = new QLabel();
+    lblInfoE->setTextFormat(Qt::RichText);
+    lblInfoE->setText("<span style='color:#ffeb3b;font-weight:bold'>光照需求: 8/4/2<br>"
+                      "种植消耗: 糖×10, 脂质×6, 蛋白×4, 维生素×4<br>"
+                      "遮光效果: 无<br>"
+                      "消耗: N×1/秒, C×5/秒<br>"
+                      "产出: 糖×2/秒, 脂质×1/秒, 蛋白×1/秒, 维生素×1/秒<br>"
+                      "特性: 极低光照生存，为周围格子+4光照</span>");
+    lblInfoE->setWordWrap(true); lblInfoE->setStyleSheet("font-size:15px; color:#333;"); infoELayout->addWidget(lblInfoE);
+    rightLayout->addWidget(infoE);
     rightLayout->addStretch(1);
+
+    // 植株特性信息栏
+    m_traitInfoLabel = new QLabel(this);
+    m_traitInfoLabel->setWordWrap(true);
+    m_traitInfoLabel->setStyleSheet("color:#00bcd4;font-size:15px;font-weight:bold;background:rgba(0,0,0,0.08);border-radius:8px;padding:8px;margin-top:8px;");
+    m_traitInfoLabel->setText(
+        "<b>植株特性可视化说明：</b><br>"
+        "<span style='color:#e53935;'>🔴➖ A型藻类</span>：若与同类相邻，左上角出现红色圆底➖，所有产量减半。<br>"
+        "<span style='color:#43a047;'>🟢➕ B型藻类</span>：被左右B型邻居加速，右上角出现绿色圆底➕，恢复速率翻倍。<br>"
+        "<span style='color:#fbc02d;'>🟡❗ C型藻类</span>：与B型相邻时，右下角出现黄色圆底❗，糖产量减半。<br>"
+        "<span style='color:#2196f3;'>🔵★ D型藻类</span>：与A/B/C型相邻时，左下角出现蓝色圆底★，自身和邻居右下角↑，双方产量+20%。<br>"
+        "<span style='color:#888;'>■ 以上特性会在格子上实时高亮显示。</span>"
+    );
+    m_traitInfoScrollArea = new QScrollArea(this);
+    m_traitInfoScrollArea->setWidget(m_traitInfoLabel);
+    m_traitInfoScrollArea->setWidgetResizable(true);
+    m_traitInfoScrollArea->setFixedHeight(180);
+    m_traitInfoScrollArea->setStyleSheet("background:transparent;border:none;");
+    rightLayout->addWidget(m_traitInfoScrollArea);
+    // 详细特性说明按钮
+    m_btnTraitDetail = new QPushButton("详细特性说明", this);
+    m_btnTraitDetail->setStyleSheet("font-size:14px;color:#fff;background:#1976d2;border-radius:8px;padding:6px 12px;margin-bottom:8px;");
+    connect(m_btnTraitDetail, &QPushButton::clicked, this, &MainWindow::showTraitDetailDialog);
+    rightLayout->addWidget(m_btnTraitDetail);
 
     // 三栏布局
     mainLayout->addWidget(leftPanel, 2);
@@ -847,6 +936,7 @@ void MainWindow::initializeCellWidgets() {
                 connect(algaeCell, &AlgaeCell::cellChanged, this, [this, row, col]() {
                     updateCellDisplay(row, col); // 数据变化时刷新显示
                 });
+                connect(cellWidget, &CellWidget::hovered, this, &MainWindow::displayCellInfo); // 悬浮显示资源信息
             }
         }
     }
@@ -875,6 +965,16 @@ void MainWindow::setupGameControls() {
         m_game->setSelectedAlgaeType(AlgaeType::TYPE_C);
         updateSelectedAlgaeButton();
         setCursor(m_cursorTypeC);
+    });
+    connect(m_btnTypeD, &QPushButton::clicked, [this]() {
+        m_game->setSelectedAlgaeType(AlgaeType::TYPE_D);
+        updateSelectedAlgaeButton();
+        setCursor(m_cursorTypeD);
+    });
+    connect(m_btnTypeE, &QPushButton::clicked, [this]() {
+        m_game->setSelectedAlgaeType(AlgaeType::TYPE_E);
+        updateSelectedAlgaeButton();
+        setCursor(m_cursorTypeE);
     });
     // 默认选中A型
     m_game->setSelectedAlgaeType(AlgaeType::TYPE_A);
@@ -935,6 +1035,8 @@ void MainWindow::updateSelectedAlgaeButton() {
     m_btnTypeA->setStyleSheet("");
     m_btnTypeB->setStyleSheet("");
     m_btnTypeC->setStyleSheet("");
+    m_btnTypeD->setStyleSheet("");
+    m_btnTypeE->setStyleSheet("");
 
     // 设置选中按钮样式
     QString selectedStyle = "background-color: rgba(255, 255, 100, 180); border: 2px solid black;";
@@ -948,6 +1050,12 @@ void MainWindow::updateSelectedAlgaeButton() {
         break;
     case AlgaeType::TYPE_C:
         m_btnTypeC->setStyleSheet(selectedStyle);
+        break;
+    case AlgaeType::TYPE_D:
+        m_btnTypeD->setStyleSheet(selectedStyle);
+        break;
+    case AlgaeType::TYPE_E:
+        m_btnTypeE->setStyleSheet(selectedStyle);
         break;
     default:
         break;
@@ -979,11 +1087,33 @@ void MainWindow::displayCellInfo(int row, int col) {
     GameGrid* grid = m_game->getGrid();
     AlgaeCell* cell = grid->getCell(row, col);
     if (cell) {
-        QString info = tr("位置: (%1,%2)  氮素: %.1f  二氧化碳: %.1f  光照: %.1f")
-            .arg(row).arg(col)
-            .arg(grid->getNitrogenAt(row, col))
-            .arg(grid->getCarbonAt(row, col))
-            .arg(grid->getLightAt(row));
+        double light = grid->getLightAt(row, col);
+        AlgaeType::Type selType = m_game->getSelectedAlgaeType();
+        QString lightReqText;
+        if (selType != AlgaeType::NONE) {
+            auto props = AlgaeType::getProperties(selType);
+            lightReqText = QString("（种植≥%1，维持≥%2，存活≥%3）")
+                .arg(props.lightRequiredPlant)
+                .arg(props.lightRequiredMaintain)
+                .arg(props.lightRequiredSurvive);
+            // 减益说明
+            if (light < props.lightRequiredSurvive) {
+                lightReqText += " [濒死：产量极低/死亡]";
+            } else if (light < props.lightRequiredMaintain) {
+                lightReqText += " [光照低：产量减半]";
+            } else if (light < props.lightRequiredPlant) {
+                lightReqText += " [可种植但产量降低]";
+            } else {
+                lightReqText += " [产量正常]";
+            }
+        }
+        QString info = QString("位置: (%1,%2)  氮素: %3  二氧化碳: %4  光照: %5 %6")
+            .arg(row)
+            .arg(col)
+            .arg(QString::number(grid->getNitrogenAt(row, col), 'f', 1))
+            .arg(QString::number(grid->getCarbonAt(row, col), 'f', 1))
+            .arg(QString::number(light, 'f', 1))
+            .arg(lightReqText);
         statusBar()->showMessage(info, 2000);
         QToolTip::showText(QCursor::pos(), info);
     }
@@ -1206,4 +1336,99 @@ void MainWindow::playEffect(const QString& name) {
     m_effectAudio->setVolume(m_effectVolume);
     m_effectPlayer->setSource(QUrl(path));
     m_effectPlayer->play();
+}
+
+// 详细特性说明弹窗实现
+void MainWindow::showTraitDetailDialog() {
+    QDialog dlg(this);
+    dlg.setWindowTitle("植株详细特性说明");
+    dlg.setMinimumSize(520, 520);
+    QVBoxLayout* layout = new QVBoxLayout(&dlg);
+    QLabel* label = new QLabel(&dlg);
+    label->setWordWrap(true);
+    label->setText("<h2 style='color:#1976d2;'>🌿 植株详细特性说明</h2><hr>"
+        "<b style='color:#e53935;font-size:17px;'>🔴➖ A型藻类</b><br>"
+        "<ul style='margin-top:0;'>"
+        "<li>若与同类（A型）相邻（上下左右），所有产量减半，格子左上角出现红色圆底➖。</li>"
+        "<li>遮光深度1格，遮光强度8，下方格子光照降低。</li>"
+        "<li>产出：糖×5/秒，蛋白×2/秒。</li>"
+        "<li>消耗：N×1/秒，C×8/秒。</li>"
+        "<li>适合单独种植或与B/C型错开布局，避免A型连片。</li>"
+        "</ul>"
+        "<b style='color:#43a047;font-size:17px;'>🟢➕ B型藻类</b><br>"
+        "<ul style='margin-top:0;'>"
+        "<li>被左右B型邻居加速，恢复速率翻倍，格子右上角出现绿色圆底➕。</li>"
+        "<li>遮光深度2格，遮光强度5，下方两格光照降低。</li>"
+        "<li>产出：糖×3/秒，脂质×4/秒，维生素×1/秒。</li>"
+        "<li>消耗：N×2/秒，C×6/秒。</li>"
+        "<li>适合横向连片种植，提升整体资源恢复速度。</li>"
+        "</ul>"
+        "<b style='color:#fbc02d;font-size:17px;'>🟡❗ C型藻类</b><br>"
+        "<ul style='margin-top:0;'>"
+        "<li>与B型相邻时，糖产量减半，格子右下角出现黄色圆底❗。</li>"
+        "<li>无遮光，不影响下方光照。</li>"
+        "<li>产出：糖×3/秒，蛋白×3/秒，维生素×5/秒。</li>"
+        "<li>消耗：N×2/秒，C×12/秒。</li>"
+        "<li>适合与A型、B型错开混合，避免与B型直接相邻。</li>"
+        "</ul>"
+        "<b style='color:#2196f3;font-size:17px;'>🔵★ D型藻类</b><br>"
+        "<ul style='margin-top:0;'>"
+        "<li>与A/B/C型相邻时，自己和邻居产量+20%，自身左下角出现蓝色圆底★，邻居右下角出现蓝色圆底↑。</li>"
+        "<li>遮光深度1格，遮光强度4，下方格子光照降低。</li>"
+        "<li>产出：糖×2.5/秒，脂质×1.5/秒，蛋白×1.5/秒，维生素×1.5/秒。</li>"
+        "<li>消耗：N×1.5/秒，C×7/秒。</li>"
+        "<li>适合作为布局核心，提升整体产量，建议与A/B/C型交错布局。</li>"
+        "</ul>"
+        "<b style='color:#ffeb3b;font-size:17px;'>🟣🔘 E型藻类</b><br>"
+        "<ul style='margin-top:0;'>"
+        "<li>极低光照生存，为周围格子+4光照。</li>"
+        "<li>无遮光，不影响下方光照。</li>"
+        "<li>产出：糖×2/秒，脂质×1/秒，蛋白×1/秒，维生素×1/秒。</li>"
+        "<li>消耗：N×1/秒，C×5/秒。</li>"
+        "<li>适合作为辅助，提升整体产量。</li>"
+        "</ul>"
+        "<hr>"
+        "<b style='color:#1976d2;'>机制补充与策略建议：</b><br>"
+        "<ul style='margin-top:0;'>"
+        "<li><b>遮光机制：</b> 上方藻类会降低下方格子的光照，影响种植和产量。A型遮1格，B型遮2格，C型无遮光，D型遮1格，E型无遮光。</li>"
+        "<li><b>资源消耗与恢复：</b> 每种藻类消耗氮/碳不同，B型横向连片可提升左右格的资源恢复速度。</li>"
+        "<li><b>特性高亮：</b> 当格子被特性影响时，会在对应角落显示彩色圆形+符号，便于直观识别。</li>"
+        "<li><b>布局建议：</b> 合理错开A/B/C/D/E型，利用B型加速、D型协同、E型补光，避免A型连片和C型与B型直接相邻，可最大化资源产出。</li>"
+        "<li><b>示例：</b> A-E-B-D-C 这种横向布局，E型可补光，D型可协同两侧A/B/C，提升整体产量。</li>"
+        "</ul>"
+        "<hr>"
+                   "<b style='color:#1976d2;font-size:17px;'>常见状态说明与应对措施</b><br>"
+                   "<ul style='margin-top:0;'>"
+                   "<li><b style='color:#00bcd4;'>光照无法种植</b>（提示“光照不足”）<br>"
+                   "<b>产生原因：</b> 当前格子的光照低于所选藻类的“种植所需光照”阈值，通常是因为上方有遮光藻类或本行本身光照较低。<br>"
+                   "<b>影响：</b> 无法在该格种植该类型藻类。<br>"
+                   "<b>改变措施：</b> 可尝试移除上方遮光藻类、选择对光照要求更低的藻类，或在光照更高的格子种植。</li>"
+                   "<li><b style='color:#e67e22;'>资源不足</b>（提示“资源不足”）<br>"
+                   "<b>产生原因：</b> 当前全局资源（糖类、脂质、蛋白质、维生素）不足以支付所选藻类的种植消耗。<br>"
+                   "<b>影响：</b> 无法种植该藻类。<br>"
+                   "<b>改变措施：</b> 通过已有藻类持续生产资源，或移除部分消耗较高的藻类，积累资源后再种植。</li>"
+                   "<li><b style='color:#d32f2f;'>濒危状态</b>（格子高亮/提示“濒死”）<br>"
+                   "<b>产生原因：</b> 已种植藻类的格子，当前光照低于“存活所需最低光照”阈值，或长时间资源极低。<br>"
+                   "<b>影响：</b> 藻类产量极低甚至为零，若持续濒危可能自动死亡被移除。<br>"
+                   "<b>改变措施：</b> 移除上方遮光藻类、调整布局提升光照，或补充资源，避免藻类死亡。</li>"
+                   "<li><b style='color:#ff9800;'>光照低</b>（格子高亮/提示“光照低”）<br>"
+                   "<b>产生原因：</b> 已种植藻类的格子，当前光照低于“维持所需光照”但高于“存活所需最低光照”。<br>"
+                   "<b>影响：</b> 藻类产量降低（通常为正常产量的一半），但不会立即死亡。<br>"
+                   "<b>改变措施：</b> 优化上方遮光藻类布局，提升本格光照，或选择对光照要求更低的藻类。</li>"
+                   "</ul>"
+                   "<hr>"
+                   "<b>其它说明：</b><br>"
+                   "- 鼠标悬浮格子可查看当前资源、光照、可否种植等信息。<br>"
+                   "- 详细数值和生产速率请参考右侧属性栏。<br>"
+                   "- 所有特性均可在主界面格子上实时高亮显示。"
+                   );
+    label->setStyleSheet("font-size:15px;color:#222;background:rgba(255,255,255,0.95);border-radius:8px;padding:12px;");
+    QScrollArea* scroll = new QScrollArea(&dlg);
+    scroll->setWidget(label);
+    scroll->setWidgetResizable(true);
+    layout->addWidget(scroll);
+    QDialogButtonBox* btnBox = new QDialogButtonBox(QDialogButtonBox::Ok, &dlg);
+    connect(btnBox, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
+    layout->addWidget(btnBox);
+    dlg.exec();
 }

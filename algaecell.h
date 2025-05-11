@@ -80,6 +80,17 @@ public:
     bool isBoostedByNeighborB() const { return m_isBoostedByNeighborB; }
     void setReducedByNeighborB(bool v) { m_isReducedByNeighborB = v; }
     bool isReducedByNeighborB() const { return m_isReducedByNeighborB; }
+    // D型协同特性
+    bool m_isSynergizedByNeighbor = false; // 被D型协同
+    bool m_isSynergizingNeighbor = false;  // D型正在协同别人
+    void setSynergizedByNeighbor(bool v) { m_isSynergizedByNeighbor = v; }
+    bool isSynergizedByNeighbor() const { return m_isSynergizedByNeighbor; }
+    void setSynergizingNeighbor(bool v) { m_isSynergizingNeighbor = v; }
+    bool isSynergizingNeighbor() const { return m_isSynergizingNeighbor; }
+    // E型加光特性
+    bool m_isLightedByE = false; // 被E型加光
+    void setLightedByE(bool v) { m_isLightedByE = v; }
+    bool isLightedByE() const { return m_isLightedByE; }
 
 protected:
     void paintEvent(QPaintEvent* event) override;      // 绘制事件

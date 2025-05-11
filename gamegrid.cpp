@@ -158,7 +158,10 @@ AlgaeCell* GameGrid::getCell(int row, int col) const {
 
 double GameGrid::getLightAt(int row, int col) const {
     if (row >= 0 && row < m_rows && col >= 0 && col < m_cols) {
-        return m_baseLight[row] - calculateShadingAt(row, col); // 基础光照减遮光
+        double base = m_baseLight[row] - calculateShadingAt(row, col);
+        AlgaeCell* cell = m_cells[row][col];
+        if (cell && cell->isLightedByE()) base += 4.0;
+        return base;
     }
     return 0.0;
 }
@@ -440,6 +443,9 @@ void GameGrid::calculateSpecialEffects() {
                 cell->setReducedByNeighborA(false);
                 cell->setBoostedByNeighborB(false);
                 cell->setReducedByNeighborB(false);
+                cell->setSynergizedByNeighbor(false);
+                cell->setSynergizingNeighbor(false);
+                cell->setLightedByE(false);
             }
         }
     }
@@ -483,6 +489,33 @@ void GameGrid::calculateSpecialEffects() {
                 }
                 cell->setReducedByNeighborB(reduced);
             }
+            // D型协同：与A/B/C型相邻时，自己和邻居产量提升20%，可视化标记
+            if (cell->getType() == AlgaeType::TYPE_D) {
+                bool synergized = false;
+                for (auto [dr, dc] : std::vector<std::pair<int,int>>{{-1,0},{1,0},{0,-1},{0,1}}) {
+                    int nr = row + dr, nc = col + dc;
+                    if (nr >= 0 && nr < m_rows && nc >= 0 && nc < m_cols) {
+                        AlgaeCell* neighbor = m_cells[nr][nc];
+                        if (neighbor->isOccupied() && neighbor->getType() != AlgaeType::TYPE_D) {
+                            neighbor->setSynergizedByNeighbor(true);
+                            cell->setSynergizingNeighbor(true);
+                            synergized = true;
+                        }
+                    }
+                }
+                cell->setSynergizedByNeighbor(synergized); // D型本身也高亮
+            }
+            // E型：为自身及周围8格加光
+            if (cell->getType() == AlgaeType::TYPE_E) {
+                for (int dr = -1; dr <= 1; ++dr) {
+                    for (int dc = -1; dc <= 1; ++dc) {
+                        int nr = row + dr, nc = col + dc;
+                        if (nr >= 0 && nr < m_rows && nc >= 0 && nc < m_cols) {
+                            m_cells[nr][nc]->setLightedByE(true);
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -502,6 +535,22 @@ void GameGrid::calculateSpecialEffects() {
                     if (col < m_cols-1) {
                         m_nitrogenRegen[row][col+1] = origNitrogenRegen[row][col+1] * 2.0;
                         m_carbonRegen[row][col+1] = origCarbonRegen[row][col+1] * 2.0;
+                    }
+                }
+            }
+        }
+    }
+    // --- 再统一补一遍E型加光，防止被覆盖 ---
+    for (int row = 0; row < m_rows; ++row) {
+        for (int col = 0; col < m_cols; ++col) {
+            AlgaeCell* cell = m_cells[row][col];
+            if (cell && cell->getType() == AlgaeType::TYPE_E) {
+                for (int dr = -1; dr <= 1; ++dr) {
+                    for (int dc = -1; dc <= 1; ++dc) {
+                        int nr = row + dr, nc = col + dc;
+                        if (nr >= 0 && nr < m_rows && nc >= 0 && nc < m_cols) {
+                            m_cells[nr][nc]->setLightedByE(true);
+                        }
                     }
                 }
             }

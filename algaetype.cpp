@@ -77,6 +77,54 @@ AlgaeType::Properties AlgaeType::getProperties(Type type) {
             props.shadingColor = QColor(0, 0, 0, 0);
             break;
 
+        case TYPE_D:
+            props.name = "协同藻类 D";
+            props.lightRequiredPlant = 16;
+            props.lightRequiredMaintain = 12;
+            props.lightRequiredSurvive = 8;
+            props.plantCostCarb = 12;
+            props.plantCostLipid = 8;
+            props.plantCostPro = 6;
+            props.plantCostVit = 6;
+            props.shadingDepth = 1;
+            props.shadingAmount = 4;
+            props.consumeRateN = 1.5;
+            props.consumeRateC = 7;
+            props.produceRateCarb = 2.5;
+            props.produceRateLipid = 1.5;
+            props.produceRatePro = 1.5;
+            props.produceRateVit = 1.5;
+            props.imagePath = ":/resources/st30f0n665joahrrvuj05fechvwkcv10/type_d.png";
+            props.hoverImagePath = ":/resources/st30f0n665joahrrvuj05fechvwkcv10/type_d.png";
+            props.selectedImagePath = ":/resources/st30f0n665joahrrvuj05fechvwkcv10/type_d.png";
+            props.cursorImagePath = ":/resources/st30f0n665joahrrvuj05fechvwkcv10/type_d.png";
+            props.shadingColor = QColor(0, 120, 255, 40);
+            break;
+
+        case TYPE_E:
+            props.name = "光源藻类 E";
+            props.lightRequiredPlant = 8;
+            props.lightRequiredMaintain = 4;
+            props.lightRequiredSurvive = 2;
+            props.plantCostCarb = 10;
+            props.plantCostLipid = 6;
+            props.plantCostPro = 4;
+            props.plantCostVit = 4;
+            props.shadingDepth = 0;
+            props.shadingAmount = 0;
+            props.consumeRateN = 1.0;
+            props.consumeRateC = 5.0;
+            props.produceRateCarb = 2.0;
+            props.produceRateLipid = 1.0;
+            props.produceRatePro = 1.0;
+            props.produceRateVit = 1.0;
+            props.imagePath = ":/resources/st30f0n665joahrrvuj05fechvwkcv10/type_e.png";
+            props.hoverImagePath = props.imagePath;
+            props.selectedImagePath = props.imagePath;
+            props.cursorImagePath = props.imagePath;
+            props.shadingColor = QColor(255, 215, 0, 80);
+            break;
+
         default:
             props.name = "";
             props.lightRequiredPlant = 0;
