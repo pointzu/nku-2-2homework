@@ -67,8 +67,6 @@ public:
 
     void setStatus(Status status);
 
-    void playSound(const QString& resourcePath);
-
 protected:
     void paintEvent(QPaintEvent* event) override;
     void enterEvent(QEnterEvent* event) override;

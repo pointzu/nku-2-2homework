@@ -34,6 +34,10 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         ../resources/sounds/displant.wav
         ../resources/sounds/buzzer.wav
         ../resources/sounds/buzzer.wav
+        SoundManager.h SoundManager.cpp
+        ../resources/newbuzzer.wav ../resources/newdisplant.wav
+        ../resources/buzzer_fixed.wav ../resources/displant_fixed.wav
+        sound.qrc
     )
 # Define target properties for Android with Qt 6 as:
 #    set_property(TARGET algaeplus APPEND PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR

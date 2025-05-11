@@ -1,0 +1,7 @@
+<RCC>
+    <qresource prefix="/">
+        <file>../resources/buzzer.wav</file>
+        <file>../resources/displant.wav</file>
+        <file>../resources/pause.wav</file>
+    </qresource>
+</RCC>

@@ -30,6 +30,7 @@ public:
     AlgaeGame* getGame() const { return m_game; }
     bool isShadingPreviewEnabled() const { return m_showShadingPreview; }
     void playEffect(const QString& name);
+    void playSoundEffect(const QString& resource);
 
 protected:
     void keyPressEvent(QKeyEvent *event) override;
@@ -116,6 +117,11 @@ private:
     double m_lastBgmProgress = -1.0;
 
     QMap<QString, QSoundEffect*> m_soundEffects;
+
+    QLabel* m_scoreHintLabel; // 分数评价简介信息栏
+    QLabel* m_scoreDetailLabel; // 分数组成详细说明
+
+    double m_sfxVolume = 1.0; // 统一音效音量（0~1）
 
     void setupUI();
     void setupGameGrid();

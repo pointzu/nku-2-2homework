@@ -112,7 +112,7 @@ void MainWindow::keyReleaseEvent(QKeyEvent *event) {
 void MainWindow::showGameMenu() {
     bool wasRunning = m_game->isGameRunning();
     if (wasRunning) {
-        playEffect("pause.wav");
+        playEffect("qrc:/resources/pause.wav");
         m_game->pauseGame();
     }
 
@@ -209,11 +209,12 @@ void MainWindow::showSettingsDialog() {
     QLabel* musicValueLabel = new QLabel();
 
     musicSlider->setRange(0, 100);
-    // musicSlider->setValue(m_game->getMusic());
+    musicSlider->setValue(static_cast<int>(m_bgmAudio->volume() * 100));
     musicValueLabel->setText(QString::number(musicSlider->value()));
 
-    connect(musicSlider, &QSlider::valueChanged, [musicValueLabel](int value) {
+    connect(musicSlider, &QSlider::valueChanged, [musicValueLabel, this](int value) {
         musicValueLabel->setText(QString::number(value));
+        m_bgmAudio->setVolume(value / 100.0);
     });
 
     musicLayout->addWidget(musicLabel);
@@ -227,11 +228,12 @@ void MainWindow::showSettingsDialog() {
     QLabel* sfxValueLabel = new QLabel();
 
     sfxSlider->setRange(0, 100);
-    // sfxSlider->setValue(m_game->getSoundEffects());
+    sfxSlider->setValue(static_cast<int>(m_effectAudio->volume() * 100));
     sfxValueLabel->setText(QString::number(sfxSlider->value()));
 
     connect(sfxSlider, &QSlider::valueChanged, [sfxValueLabel](int value) {
         sfxValueLabel->setText(QString::number(value));
+        // 不做任何音量设置
     });
 
     sfxLayout->addWidget(sfxLabel);
@@ -252,11 +254,7 @@ void MainWindow::showSettingsDialog() {
 
     // Show dialog
     if (dialog.exec() == QDialog::Accepted) {
-        // Apply settings
-        // m_game->setMusicVolume(musicSlider->value());
-        // m_game->setSoundEffectsVolume(sfxSlider->value());
-
-        // Save settings
+        // 只保存设置，不再重复设置音量
         QSettings settings("AlgaeGame", "Settings");
         settings.setValue("MusicVolume", musicSlider->value());
         settings.setValue("SFXVolume", sfxSlider->value());
@@ -451,6 +449,32 @@ void CellWidget::paintEvent(QPaintEvent* event) {
     painter.setFont(smallFont);
     painter.drawText(rect().adjusted(2, 2, -2, -2), Qt::AlignTop | Qt::AlignLeft,
                      QString::number(m_row) + "," + QString::number(m_col));
+
+    // 5. 格外下方的高亮资源标注
+    GameGrid* grid = nullptr;
+    if (m_cell && m_cell->parentWidget()) {
+        grid = qobject_cast<GameGrid*>(m_cell->parentWidget());
+    }
+    if (grid) {
+        double n = grid->getNitrogenAt(m_row, m_col);
+        double c = grid->getCarbonAt(m_row, m_col);
+        double l = grid->getLightAt(m_row, m_col);
+
+        QRect outRect(rect().left(), rect().bottom() + 2, rect().width(), 18);
+
+        QFont font("Arial", 10, QFont::Bold);
+        painter.setFont(font);
+
+        // N高亮绿色
+        painter.setPen(QColor(0, 220, 0));
+        painter.drawText(outRect.adjusted(0, 0, -rect().width()*2/3, 0), Qt::AlignLeft | Qt::AlignVCenter, QString("N:%1").arg((int)n));
+        // C高亮蓝色
+        painter.setPen(QColor(30, 144, 255));
+        painter.drawText(outRect.adjusted(rect().width()/3, 0, -rect().width()/3, 0), Qt::AlignHCenter | Qt::AlignVCenter, QString("C:%1").arg((int)c));
+        // L高亮黄色
+        painter.setPen(QColor(255, 215, 0));
+        painter.drawText(outRect.adjusted(rect().width()*2/3, 0, 0, 0), Qt::AlignRight | Qt::AlignVCenter, QString("L:%1").arg((int)l));
+    }
 }
 
 void CellWidget::mousePressEvent(QMouseEvent* event) {
@@ -593,6 +617,15 @@ void MainWindow::setupUI() {
     // 分数栏
     m_scoreLabel->setStyleSheet("color: #1976d2; font-weight: bold; font-size: 20px; background: #e3f2fd; border-radius: 10px; padding: 6px;");
     leftLayout->addWidget(m_scoreLabel);
+    // 新增分数简介信息栏
+    m_scoreHintLabel = new QLabel(this);
+    m_scoreHintLabel->setStyleSheet("color:#ff9800;font-size:16px;font-weight:bold;background:rgba(255,255,255,0.1);border-radius:8px;padding:4px;");
+    leftLayout->addWidget(m_scoreHintLabel);
+    // 新增分数组成详细说明栏
+    m_scoreDetailLabel = new QLabel(this);
+    m_scoreDetailLabel->setStyleSheet("color:#2196f3;font-size:13px;background:rgba(255,255,255,0.08);border-radius:8px;padding:4px;");
+    m_scoreDetailLabel->setWordWrap(true);
+    leftLayout->addWidget(m_scoreDetailLabel);
 
     // 资源
     QGroupBox* resourceGroup = new QGroupBox("资源"); resourceGroup->setFont(groupFont);
@@ -720,11 +753,6 @@ void MainWindow::setupUI() {
     mainLayout->addWidget(leftPanel, 2);
     mainLayout->addWidget(centerPanel, 8); // 网格区域最大
     mainLayout->addWidget(rightPanel, 2);
-
-    // 底部操作提示栏（始终可见）
-    QLabel* tipLabel = new QLabel("选择藻类并点击网格位置，右键可移除藻类 | 1/2/3切换藻类 | ESC菜单", this);
-    tipLabel->setStyleSheet("color: #fff; font-size: 15px; font-weight:bold; background: #1976d2; border-radius:8px; padding: 6px;");
-    statusBar()->addWidget(tipLabel, 1);
 }
 
 void MainWindow::initializeCellWidgets() {
@@ -876,22 +904,29 @@ void MainWindow::displayCellInfo(int row, int col) {
     }
 }
 
+void MainWindow::playSoundEffect(const QString& resource) {
+    auto player = new QMediaPlayer(this);
+    auto audio = new QAudioOutput(this);
+    player->setAudioOutput(audio);
+    audio->setVolume(1.0); // 固定最大音量
+    player->setSource(QUrl(resource));
+    player->play();
+    connect(player, &QMediaPlayer::mediaStatusChanged, player, [player, audio](QMediaPlayer::MediaStatus status){
+        if (status == QMediaPlayer::EndOfMedia || status == QMediaPlayer::InvalidMedia) {
+            player->deleteLater();
+            audio->deleteLater();
+        }
+    });
+}
+
 void MainWindow::onCellClicked(int row, int col) {
     bool success = m_game->plantAlgae(row, col);
-    using PR = AlgaeCell::PlantResult;
-    PR result = m_game->getLastPlantResult();
-    QString tip, bar;
-    switch (result) {
-        case PR::PLANT_SUCCESS:
-            tip = "种植成功！"; bar = tr("放置藻类在 (%1,%2)").arg(row).arg(col);
-            playEffect("planted.wav");
-            break;
-        default:
-            playEffect("buzzer.wav");
-            break;
+    if (success) {
+        statusBar()->showMessage(tr("放置藻类在 (%1,%2)").arg(row).arg(col), 2000);
+        playEffect("planted.mp3");
+    } else {
+        playEffect("buzzer.wav");
     }
-    if (!tip.isEmpty()) QToolTip::showText(QCursor::pos(), tip);
-    if (!bar.isEmpty()) statusBar()->showMessage(bar, 2000);
     updateCellDisplay(row, col);
 }
 
@@ -916,10 +951,26 @@ void MainWindow::onGameStateChanged() {
 
 void MainWindow::onResourcesChanged() {
     GameResources* resources = m_game->getResources();
-    m_lblCarb->setText(QString::number(resources->getCarbohydrates(), 'f', 1));
-    m_lblLipid->setText(QString::number(resources->getLipids(), 'f', 1));
-    m_lblPro->setText(QString::number(resources->getProteins(), 'f', 1));
-    m_lblVit->setText(QString::number(resources->getVitamins(), 'f', 1));
+    // 目标值
+    const double WIN_CARB = 500.0;
+    const double WIN_LIPID = 300.0;
+    const double WIN_PRO = 200.0;
+    const double WIN_VIT = 100.0;
+    // 当前值
+    double c = resources->getCarbohydrates();
+    double l = resources->getLipids();
+    double p = resources->getProteins();
+    double v = resources->getVitamins();
+    // 达标判断
+    auto resStyle = [](bool ok) { return ok ? "color:#2ecc40;font-weight:bold;" : "color:#e67e22;"; };
+    m_lblCarb->setText(QString("%1 / %2 %3").arg(QString::number(c, 'f', 1)).arg(WIN_CARB, 0, 'f', 0).arg(c >= WIN_CARB ? "✅" : "❌"));
+    m_lblCarb->setStyleSheet(resStyle(c >= WIN_CARB));
+    m_lblLipid->setText(QString("%1 / %2 %3").arg(QString::number(l, 'f', 1)).arg(WIN_LIPID, 0, 'f', 0).arg(l >= WIN_LIPID ? "✅" : "❌"));
+    m_lblLipid->setStyleSheet(resStyle(l >= WIN_LIPID));
+    m_lblPro->setText(QString("%1 / %2 %3").arg(QString::number(p, 'f', 1)).arg(WIN_PRO, 0, 'f', 0).arg(p >= WIN_PRO ? "✅" : "❌"));
+    m_lblPro->setStyleSheet(resStyle(p >= WIN_PRO));
+    m_lblVit->setText(QString("%1 / %2 %3").arg(QString::number(v, 'f', 1)).arg(WIN_VIT, 0, 'f', 0).arg(v >= WIN_VIT ? "✅" : "❌"));
+    m_lblVit->setStyleSheet(resStyle(v >= WIN_VIT));
     updateWinProgress();
     updateWinConditionLabels();
     updateScoreBar();
@@ -928,10 +979,24 @@ void MainWindow::onResourcesChanged() {
 
 void MainWindow::onProductionRatesChanged() {
     GameResources* resources = m_game->getResources();
-    m_lblCarbRate->setText(QString::number(resources->getCarbRate(), 'f', 1));
-    m_lblLipidRate->setText(QString::number(resources->getLipidRate(), 'f', 1));
-    m_lblProRate->setText(QString::number(resources->getProRate(), 'f', 1));
-    m_lblVitRate->setText(QString::number(resources->getVitRate(), 'f', 1));
+    // 目标速率
+    const double TARGET_CARB_RATE = 50.0;
+    const double TARGET_LIPID_RATE = 30.0;
+    const double TARGET_PRO_RATE = 20.0;
+    const double TARGET_VIT_RATE = 10.0;
+    double cr = resources->getCarbRate();
+    double lr = resources->getLipidRate();
+    double pr = resources->getProRate();
+    double vr = resources->getVitRate();
+    auto rateStyle = [](bool ok) { return ok ? "color:#b2ff59;font-weight:bold;" : "color:#e67e22;"; };
+    m_lblCarbRate->setText(QString("%1 / %2 %3").arg(QString::number(cr, 'f', 1)).arg(TARGET_CARB_RATE, 0, 'f', 0).arg(cr >= TARGET_CARB_RATE ? "✅" : "❌"));
+    m_lblCarbRate->setStyleSheet(rateStyle(cr >= TARGET_CARB_RATE));
+    m_lblLipidRate->setText(QString("%1 / %2 %3").arg(QString::number(lr, 'f', 1)).arg(TARGET_LIPID_RATE, 0, 'f', 0).arg(lr >= TARGET_LIPID_RATE ? "✅" : "❌"));
+    m_lblLipidRate->setStyleSheet(rateStyle(lr >= TARGET_LIPID_RATE));
+    m_lblProRate->setText(QString("%1 / %2 %3").arg(QString::number(pr, 'f', 1)).arg(TARGET_PRO_RATE, 0, 'f', 0).arg(pr >= TARGET_PRO_RATE ? "✅" : "❌"));
+    m_lblProRate->setStyleSheet(rateStyle(pr >= TARGET_PRO_RATE));
+    m_lblVitRate->setText(QString("%1 / %2 %3").arg(QString::number(vr, 'f', 1)).arg(TARGET_VIT_RATE, 0, 'f', 0).arg(vr >= TARGET_VIT_RATE ? "✅" : "❌"));
+    m_lblVitRate->setStyleSheet(rateStyle(vr >= TARGET_VIT_RATE));
 }
 
 void MainWindow::updateWinProgress() {
@@ -1006,6 +1071,26 @@ void MainWindow::updateScoreBar() {
     }
     if (totalScore > m_highScore) m_highScore = totalScore;
     m_scoreLabel->setText(QString("分数：%1   最高分：%2").arg(totalScore).arg(m_highScore));
+    // 新增分数简介信息栏内容
+    QString hint;
+    if (totalScore < 60) hint = "继续努力，优化藻类布局！";
+    else if (totalScore < 80) hint = "良好，距离目标不远了！";
+    else if (totalScore < 100) hint = "优秀，快达成极限生产！";
+    else hint = "极限挑战，追求更高分数！";
+    m_scoreHintLabel->setText(hint);
+    // 新增分数组成详细说明
+    QString detail = QString(
+        "当前分数组成：\n"
+        "资源得分：%1\n"
+        "速率得分：%2\n"
+        "总分：%3\n"
+        "<span style='color:#888'>资源得分 = (糖/500 + 脂/300 + 蛋白/200 + 维生素/100) / 4 × 50<br>"
+        "速率得分 = (糖速/50 + 脂速/30 + 蛋白速/20 + 维生素速/10) / 4 × 50<br>"
+        "总分 = 资源得分 + 速率得分（满100分后只看速率得分）</span>"
+    ).arg(QString::number(resourceScore, 'f', 1))
+     .arg(QString::number(rateScore, 'f', 1))
+     .arg(QString::number(totalScore));
+    m_scoreDetailLabel->setText(detail);
 }
 
 void MainWindow::playBGM(double progress) {
@@ -1023,7 +1108,5 @@ void MainWindow::playBGM(double progress) {
 
 void MainWindow::playEffect(const QString& name) {
     QString path = "qrc:/resources/st30f0n665joahrrvuj05fechvwkcv10/" + name;
-    qDebug() << "QMediaPlayer播放音效(最终路径):" << path;
-    m_effectPlayer->setSource(QUrl(path));
-    m_effectPlayer->play();
+    playSoundEffect(path);
 }

@@ -118,5 +118,11 @@
         <file>../resources/buzzer.wav</file>
         <file>../resources/pause.wav</file>
         <file>../resources/displant.wav</file>
+        <file>../resources/newbuzzer.mp3</file>
+        <file>../resources/newdisplant.mp3</file>
+        <file>../resources/newbuzzer.wav</file>
+        <file>../resources/newdisplant.wav</file>
+        <file>../resources/buzzer_fixed.wav</file>
+        <file>../resources/displant_fixed.wav</file>
     </qresource>
 </RCC>

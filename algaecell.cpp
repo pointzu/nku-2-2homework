@@ -1,6 +1,5 @@
 #include "algaecell.h" // 引入藻类单元格头文件
 #include "gamegrid.h"  // 引入网格头文件
-#include "mainwindow.h" // 引入主窗口头文件
 #include <QPainter>    // Qt绘图类
 #include <QMouseEvent> // Qt鼠标事件
 #include <QToolTip>    // Qt提示框
@@ -8,6 +7,7 @@
 #include <QAudioOutput>
 #include <QDebug>
 #include <QFile>
+#include <QSoundEffect>
 
 // 藻类单元格构造函数
 AlgaeCell::AlgaeCell(int row, int col, GameGrid* parent)
@@ -55,7 +55,6 @@ enum PlantResult {
 // 种植函数
 AlgaeCell::PlantResult AlgaeCell::plant(AlgaeType::Type type, double lightLevel, bool canAfford, bool canReserve) {
     if (isOccupied()) {
-        playSound("qrc:/../resources/buzzer.wav");
         return AlgaeCell::PLANT_OCCUPIED;
     }
     AlgaeType::Properties props = AlgaeType::getProperties(type); // 获取属性
@@ -97,7 +96,6 @@ AlgaeCell::PlantResult AlgaeCell::plant(AlgaeType::Type type, double lightLevel,
 
 void AlgaeCell::remove() {
     if (isOccupied()) {
-        playSound("qrc:/../resources/displant.wav");
         m_type = AlgaeType::NONE;
         m_properties = AlgaeType::getProperties(m_type);
         m_status = NORMAL;
@@ -197,55 +195,18 @@ void AlgaeCell::paintEvent(QPaintEvent* event)
         painter.drawRect(cellRect.adjusted(2,2,-2,-2));
     }
 
-    // 5. 悬浮高亮和光照数值/可种植状态
-    if (m_isHovered) {
-        QColor hoverColor = QColor(255, 255, 0, 120);
-        painter.setPen(QPen(hoverColor, 3, Qt::DashLine));
-        painter.drawRect(cellRect.adjusted(4, 4, -4, -4));
-        // 显示光照数值和可种植状态
-        AlgaeType::Type selType = m_type;
-        if (m_grid && !isOccupied()) {
-            MainWindow* mw = nullptr;
-            QWidget* w = m_grid->parentWidget();
-            while (w && !mw) { mw = qobject_cast<MainWindow*>(w); w = w->parentWidget(); }
-            if (mw) selType = mw->getGame()->getSelectedAlgaeType();
-        }
-        QString info;
-        if (selType != AlgaeType::NONE) {
-            AlgaeType::Properties props = AlgaeType::getProperties(selType);
-            if (light < props.lightRequiredPlant) {
-                info = "光照不足";
-            } else {
-                info = "可种植";
-            }
-            info += QString(" 光照:%1").arg((int)light);
-        } else {
-            info = QString("光照:%1").arg((int)light);
-        }
-        painter.setPen(Qt::black);
-        painter.setFont(QFont("微软雅黑", 10, QFont::Bold));
-        painter.drawText(cellRect.adjusted(0,0,0,-cellRect.height()/2), Qt::AlignCenter, info);
-    }
-
-    // 5. 网格右侧竖排高亮显示资源数值（氮、碳、光照）
+    // 5. 格外下方的资源标注
     if (m_grid) {
         double n = m_grid->getNitrogenAt(m_row, m_col);
         double c = m_grid->getCarbonAt(m_row, m_col);
         double l = m_grid->getLightAt(m_row, m_col);
-        QFont font = painter.font();
-        font.setPointSize(10);
-        font.setBold(true);
-        painter.setFont(font);
-        int margin = 4;
-        int spacing = 18;
-        int x = cellRect.right() - 48 + margin; // 靠右侧
-        int y = cellRect.top() + margin;
-        painter.setPen(QColor("#00e676"));
-        painter.drawText(x, y + spacing * 0, QString("N:%1").arg(n, 0, 'f', 1));
-        painter.setPen(QColor("#29b6f6"));
-        painter.drawText(x, y + spacing * 1, QString("C:%1").arg(c, 0, 'f', 1));
-        painter.setPen(QColor("#ffd600"));
-        painter.drawText(x, y + spacing * 2, QString("L:%1").arg(l, 0, 'f', 1));
+        QString resText = QString("N:%1  C:%2  L:%3").arg((int)n).arg((int)c).arg((int)l);
+        QFont resFont("Arial", 8);
+        QPainter* p = &painter;
+        p->setFont(resFont);
+        p->setPen(QColor(180,180,180));
+        QRect outRect(rect().left(), rect().bottom()+2, rect().width(), 14);
+        p->drawText(outRect, Qt::AlignCenter, resText);
     }
 }
 
@@ -344,12 +305,4 @@ void AlgaeCell::checkSpecialRules() {
             emit algaeDied();
         }
     }
-}
-
-void AlgaeCell::playSound(const QString& resourcePath) {
-    m_player->stop();
-    m_player->setSource(QUrl(resourcePath));
-    m_audioOutput->setVolume(1.0);
-    m_player->play();
-    qDebug() << "播放音效:" << resourcePath << "状态:" << m_player->error() << m_player->errorString();
 }

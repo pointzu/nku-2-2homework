@@ -8,5 +8,8 @@
         <file>../resources/st30f0n665joahrrvuj05fechvwkcv10/victory.wav</file>
         <file>../resources/st30f0n665joahrrvuj05fechvwkcv10/2.png</file>
         <file>../resources/planted.mp3</file>
+        <file>../resources/buzzer.wav</file>
+        <file>../resources/displant.wav</file>
+        <file>../resources/pause.wav</file>
     </qresource>
 </RCC>

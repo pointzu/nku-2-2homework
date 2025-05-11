@@ -93,13 +93,7 @@ bool AlgaeGame::plantAlgae(int row, int col) {
     double light = m_grid->getLightAt(row);
     bool canAfford = AlgaeType::canAfford(m_selectedAlgaeType, carb, lipid, pro, vit);
     if (!canAfford) {
-        // 资源不足，不能种植，播放音效
-        QWidget* w = qobject_cast<QWidget*>(parent());
-        while (w && !w->inherits("MainWindow")) w = w->parentWidget();
-        if (w) {
-            auto mw = qobject_cast<MainWindow*>(w);
-            if (mw) mw->playEffect("buzzer.wav");
-        }
+        // 资源不足，不能种植
         return false;
     }
     bool canReserve = true;
@@ -113,23 +107,8 @@ bool AlgaeGame::plantAlgae(int row, int col) {
             m_resources->subtractLipids(props.plantCostLipid);
             m_resources->subtractProteins(props.plantCostPro);
             m_resources->subtractVitamins(props.plantCostVit);
-            // 播放种植音效
-            QWidget* w = qobject_cast<QWidget*>(parent());
-            while (w && !w->inherits("MainWindow")) w = w->parentWidget();
-            if (w) {
-                auto mw = qobject_cast<MainWindow*>(w);
-                if (mw) mw->playEffect("planted.wav");
-            }
             updateProductionRates();
             return true;
-        } else {
-            // 只要不是成功，全部播放buzzer音效
-            QWidget* w = qobject_cast<QWidget*>(parent());
-            while (w && !w->inherits("MainWindow")) w = w->parentWidget();
-            if (w) {
-                auto mw = qobject_cast<MainWindow*>(w);
-                if (mw) mw->playEffect("buzzer.wav");
-            }
         }
         updateProductionRates();
         return false;
