@@ -91,6 +91,9 @@ private:
     void initializeResources();
     void updateResources(double deltaTime);
     void calculateSpecialEffects();
+
+protected:
+    void paintEvent(QPaintEvent* event) override;
 };
 
 #endif // GAMEGRID_H

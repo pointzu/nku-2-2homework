@@ -2,6 +2,7 @@
 #include <QRandomGenerator> // Qt随机数生成器
 #include <QApplication>     // Qt应用程序类
 #include"mainwindow.h"    // 主窗口头文件
+#include <QPainter>
 GameGrid::GameGrid(QWidget* parent)
     : QWidget(parent)
     , m_layout(new QGridLayout(this)) // 创建网格布局
@@ -465,4 +466,38 @@ double GameGrid::getLightAtIfPlanted(int row, int col, AlgaeType::Type type) con
         }
     }
     return m_baseLight[row] - simulatedShading; // 返回预判光照
+}
+
+void GameGrid::paintEvent(QPaintEvent* event) {
+    QWidget::paintEvent(event);
+
+    QPainter painter(this);
+    QRect rect = this->rect();
+
+    // N、C行
+    QRect outRect1(rect.left(), rect.bottom() - 38, rect.width(), 12);
+    QFont fontNC("Arial", 8, QFont::Bold);
+    painter.setFont(fontNC);
+    QString ncText = QString("<span style='color:#fff;'>N:%1&nbsp;&nbsp;C:%2</span>")
+                        .arg((int)m_nitrogen[0][0]).arg((int)m_carbon[0][0]);
+    QTextDocument docNC;
+    docNC.setHtml(QString("<div align='center' style='line-height:12px;margin:0;padding:0;'>%1</div>").arg(ncText));
+    painter.save();
+    painter.translate(outRect1.left(), outRect1.top());
+    docNC.setTextWidth(outRect1.width());
+    docNC.drawContents(&painter, QRectF(0, 0, outRect1.width(), outRect1.height()));
+    painter.restore();
+
+    // L行
+    QRect outRect2(rect.left(), rect.bottom() - 24, rect.width(), 16);
+    QFont fontL("Arial", 11, QFont::Bold);
+    painter.setFont(fontL);
+    QString lText = QString("<span style='color:#00ff66;'>L:%1</span>").arg((int)getLightAt(0)); // 绿色高亮
+    QTextDocument docL;
+    docL.setHtml(QString("<div align='center' style='line-height:15px;margin:0;padding:0;'>%1</div>").arg(lText));
+    painter.save();
+    painter.translate(outRect2.left(), outRect2.top());
+    docL.setTextWidth(outRect2.width());
+    docL.drawContents(&painter, QRectF(0, 0, outRect2.width(), outRect2.height()));
+    painter.restore();
 }

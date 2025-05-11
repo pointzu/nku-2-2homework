@@ -122,6 +122,8 @@ private:
     QLabel* m_scoreHintLabel;   // 分数评价简介信息栏
     QLabel* m_scoreDetailLabel; // 分数组成详细说明
 
+    double m_effectVolume = 1.0; // 新增，音效音量（0.0~1.0）
+
     void setupUI();                // 初始化UI
     void setupGameGrid();          // 初始化网格
     void setupGameControls();      // 初始化控制按钮

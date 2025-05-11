@@ -30,6 +30,7 @@
 #include <QStandardPaths> // 标准路径
 #include <QDir>           // 目录
 #include <QUrl>           // URL
+#include <QTextDocument>  // 文本文档
 
 // =================== CellWidget实现部分 ===================
 // 游戏胜利时的处理函数
@@ -238,12 +239,13 @@ void MainWindow::showSettingsDialog() {
     QLabel* sfxValueLabel = new QLabel();
 
     sfxSlider->setRange(0, 100);
-    sfxSlider->setValue(static_cast<int>(m_effectAudio->volume() * 100));
+    sfxSlider->setValue(static_cast<int>(m_effectVolume * 100));
     sfxValueLabel->setText(QString::number(sfxSlider->value()));
 
     connect(sfxSlider, &QSlider::valueChanged, [sfxValueLabel, this](int value) {
         sfxValueLabel->setText(QString::number(value));
-        m_effectAudio->setVolume(value / 100.0);
+        m_effectVolume = value / 100.0;
+        m_effectAudio->setVolume(m_effectVolume);
     });
 
     sfxLayout->addWidget(sfxLabel);
@@ -471,20 +473,34 @@ void CellWidget::paintEvent(QPaintEvent* event) {
         double c = grid->getCarbonAt(m_row, m_col);
         double l = grid->getLightAt(m_row, m_col);
 
-        QRect outRect(rect().left(), rect().bottom() + 2, rect().width(), 18);
+        // 第一行：N、C，第二行：L
+        QRect outRect1(rect().left(), rect().bottom() - 44, rect().width(), 12); // N、C行更上移
+        QRect outRect2(rect().left(), rect().bottom() - 28, rect().width(), 16); // L行更上移
 
-        QFont font("Arial", 10, QFont::Bold);
-        painter.setFont(font);
+        // N、C行，8号加粗
+        QFont fontNC("Arial", 8, QFont::Bold);
+        painter.setFont(fontNC);
+        QString ncText = QString("<span style='color:#fff;'>N:%1 C:%2</span>")
+                            .arg((int)n).arg((int)c);
+        QTextDocument docNC;
+        docNC.setHtml(QString("<div align='center' style='line-height:11px;margin:0;padding:0;'>%1</div>").arg(ncText));
+        painter.save();
+        painter.translate(outRect1.left(), outRect1.top());
+        docNC.setTextWidth(outRect1.width());
+        docNC.drawContents(&painter, QRectF(0, 0, outRect1.width(), outRect1.height()));
+        painter.restore();
 
-        // N高亮绿色
-        painter.setPen(QColor(0, 220, 0));
-        painter.drawText(outRect.adjusted(0, 0, -rect().width()*2/3, 0), Qt::AlignLeft | Qt::AlignVCenter, QString("N:%1").arg((int)n));
-        // C高亮蓝色
-        painter.setPen(QColor(30, 144, 255));
-        painter.drawText(outRect.adjusted(rect().width()/3, 0, -rect().width()/3, 0), Qt::AlignHCenter | Qt::AlignVCenter, QString("C:%1").arg((int)c));
-        // L高亮黄色
-        painter.setPen(QColor(255, 215, 0));
-        painter.drawText(outRect.adjusted(rect().width()*2/3, 0, 0, 0), Qt::AlignRight | Qt::AlignVCenter, QString("L:%1").arg((int)l));
+        // L行，10号加粗
+        QFont fontL("Arial", 10, QFont::Bold);
+        painter.setFont(fontL);
+        QString lText = QString("<span style='color:#fff;'>L:%1</span>").arg((int)l);
+        QTextDocument docL;
+        docL.setHtml(QString("<div align='center' style='line-height:14px;margin:0;padding:0;'>%1</div>").arg(lText));
+        painter.save();
+        painter.translate(outRect2.left(), outRect2.top());
+        docL.setTextWidth(outRect2.width());
+        docL.drawContents(&painter, QRectF(0, 0, outRect2.width(), outRect2.height()));
+        painter.restore();
     }
 }
 
@@ -581,6 +597,10 @@ MainWindow::MainWindow(QWidget *parent)
     m_effectAudio->setVolume(1.0);
     m_lastBgmProgress = -1.0;
     m_soundEffects.clear();
+    // 新增：读取音效音量设置
+    QSettings settings("AlgaeGame", "Settings");
+    m_effectVolume = settings.value("SFXVolume", 100).toInt() / 100.0;
+    m_effectAudio->setVolume(m_effectVolume);
     setupUI();                // 初始化UI
     setupGameGrid();          // 初始化网格
     setupGameControls();      // 初始化控制按钮
@@ -930,8 +950,8 @@ void MainWindow::displayCellInfo(int row, int col) {
 void MainWindow::playSoundEffect(const QString& resource) {
     auto player = new QMediaPlayer(this);
     auto audio = new QAudioOutput(this);
+    audio->setVolume(m_effectVolume);
     player->setAudioOutput(audio);
-    audio->setVolume(1.0);
     player->setSource(QUrl(resource));
     player->play();
     connect(player, &QMediaPlayer::mediaStatusChanged, player, [player, audio](QMediaPlayer::MediaStatus status){
@@ -1114,7 +1134,7 @@ void MainWindow::updateScoreBar() {
         "资源得分：%1\n"
         "速率得分：%2\n"
         "总分：%3\n"
-        "<span style='color:#888'>资源得分 = (糖/500 + 脂/300 + 蛋白/200 + 维生素/100) / 4 × 50<br>"
+        "资源得分 = (糖/500 + 脂/300 + 蛋白/200 + 维生素/100) / 4 × 50<br>"
         "速率得分 = (糖速/50 + 脂速/30 + 蛋白速/20 + 维生素速/10) / 4 × 50<br>"
         "总分 = 资源得分 + 速率得分（满100分后只看速率得分）</span>"
     ).arg(QString::number(resourceScore, 'f', 1))
@@ -1140,7 +1160,7 @@ void MainWindow::playBGM(double progress) {
 // 播放音效（主播放器）
 void MainWindow::playEffect(const QString& name) {
     QString path = "qrc:/resources/st30f0n665joahrrvuj05fechvwkcv10/" + name;
-    qDebug() << "QMediaPlayer播放音效(最终路径):" << path;
+    m_effectAudio->setVolume(m_effectVolume);
     m_effectPlayer->setSource(QUrl(path));
     m_effectPlayer->play();
 }
