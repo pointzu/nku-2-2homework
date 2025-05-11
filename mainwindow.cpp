@@ -116,7 +116,7 @@ void MainWindow::keyReleaseEvent(QKeyEvent *event) {
 void MainWindow::showGameMenu() {
     bool wasRunning = m_game->isGameRunning(); // 记录游戏是否在运行
     if (wasRunning) {
-        playEffect("qrc:/resources/pause.wav"); // 播放暂停音效
+        if (m_bgmPlayer) m_bgmPlayer->pause(); // 暂停背景音乐
         m_game->pauseGame(); // 暂停游戏
     }
 
@@ -137,18 +137,21 @@ void MainWindow::showGameMenu() {
 
     if (selectedAction == continueAction) {
         m_game->startGame(); // 继续游戏
+        if (m_bgmPlayer) m_bgmPlayer->play(); // 恢复背景音乐
     } else if (selectedAction == restartAction) {
         restartGame();
     } else if (selectedAction == settingsAction) {
         showSettingsDialog();
         if (wasRunning) {
             m_game->startGame(); // 设置后继续
+            if (m_bgmPlayer) m_bgmPlayer->play(); // 恢复背景音乐
         }
     } else if (selectedAction == exitAction) {
         exitGame();
     } else if (wasRunning) {
         // 菜单取消但游戏原本在运行，恢复
         m_game->startGame();
+        if (m_bgmPlayer) m_bgmPlayer->play(); // 恢复背景音乐
     }
 }
 
