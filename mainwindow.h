@@ -19,6 +19,7 @@
 #include <QSoundEffect>   // 音效
 #include <QMap>           // Qt字典
 #include <QScrollArea>    // 滚动区域
+#include <QPixmap>         // 像素图
 
 class CellWidget; // 前置声明，格子控件
 
@@ -112,6 +113,9 @@ private:
     QCursor m_cursorTypeC; // C型指针
     QCursor m_cursorTypeD; // D型指针
     QCursor m_cursorTypeE;
+
+    // 新增：五种藻类图标pixmap
+    QPixmap pixA, pixB, pixC, pixD, pixE;
 
     QLabel* m_scoreLabel; // 实时分数栏
     int m_highScore = 0; // 最高分

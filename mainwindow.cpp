@@ -652,11 +652,11 @@ MainWindow::MainWindow(QWidget *parent)
     m_lblProRateCond = new QLabel(this);   // 蛋白质速率条件
     m_lblVitRateCond = new QLabel(this);   // 维生素速率条件
     // 初始化鼠标指针
-    QPixmap pixA(":/resources/st30f0n665joahrrvuj05fechvwkcv10/type_a.png");
-    QPixmap pixB(":/resources/st30f0n665joahrrvuj05fechvwkcv10/type_b.png");
-    QPixmap pixC(":/resources/st30f0n665joahrrvuj05fechvwkcv10/type_c.png");
-    QPixmap pixD(":/resources/st30f0n665joahrrvuj05fechvwkcv10/type_d.png");
-    QPixmap pixE(":/resources/st30f0n665joahrrvuj05fechvwkcv10/type_e.png");
+    pixA = QPixmap(":/resources/st30f0n665joahrrvuj05fechvwkcv10/type_a.png");
+    pixB = QPixmap(":/resources/st30f0n665joahrrvuj05fechvwkcv10/type_b.png");
+    pixC = QPixmap(":/resources/st30f0n665joahrrvuj05fechvwkcv10/type_c.png");
+    pixD = QPixmap(":/resources/st30f0n665joahrrvuj05fechvwkcv10/type_d.png");
+    pixE = QPixmap(":/resources/st30f0n665joahrrvuj05fechvwkcv10/type_e.png");
     m_cursorTypeA = QCursor(pixA.scaled(32,32,Qt::KeepAspectRatio,Qt::SmoothTransformation), 0, 0);
     m_cursorTypeB = QCursor(pixB.scaled(32,32,Qt::KeepAspectRatio,Qt::SmoothTransformation), 0, 0);
     m_cursorTypeC = QCursor(pixC.scaled(32,32,Qt::KeepAspectRatio,Qt::SmoothTransformation), 0, 0);
@@ -815,101 +815,70 @@ void MainWindow::setupUI() {
     // 右侧：藻类选择与说明
     QWidget* rightPanel = new QWidget;
     QVBoxLayout* rightLayout = new QVBoxLayout(rightPanel);
-    rightLayout->setSpacing(10);
+    rightLayout->setSpacing(8); // 更紧凑
     QGroupBox* controlGroup = new QGroupBox("藻类选择"); controlGroup->setFont(groupFont);
     QVBoxLayout* controlLayout = new QVBoxLayout(controlGroup);
-    QHBoxLayout* rowA = new QHBoxLayout(); rowA->addWidget(m_iconTypeA); rowA->addWidget(m_btnTypeA);
-    QHBoxLayout* rowB = new QHBoxLayout(); rowB->addWidget(m_iconTypeB); rowB->addWidget(m_btnTypeB);
-    QHBoxLayout* rowC = new QHBoxLayout(); rowC->addWidget(m_iconTypeC); rowC->addWidget(m_btnTypeC);
-    QHBoxLayout* rowD = new QHBoxLayout(); rowD->addWidget(m_iconTypeD); rowD->addWidget(m_btnTypeD);
-    QHBoxLayout* rowE = new QHBoxLayout(); rowE->addWidget(m_iconTypeE); rowE->addWidget(m_btnTypeE);
-    controlLayout->addLayout(rowA); controlLayout->addLayout(rowB); controlLayout->addLayout(rowC);
-    controlLayout->addLayout(rowD); controlLayout->addLayout(rowE);
+    // 放大按钮和图标
+    m_iconTypeA->setPixmap(pixA.scaled(100,100,Qt::KeepAspectRatio,Qt::SmoothTransformation));
+    m_iconTypeB->setPixmap(pixB.scaled(100,100,Qt::KeepAspectRatio,Qt::SmoothTransformation));
+    m_iconTypeC->setPixmap(pixC.scaled(100,100,Qt::KeepAspectRatio,Qt::SmoothTransformation));
+    m_iconTypeD->setPixmap(pixD.scaled(100,100,Qt::KeepAspectRatio,Qt::SmoothTransformation));
+    m_iconTypeE->setPixmap(pixE.scaled(100,100,Qt::KeepAspectRatio,Qt::SmoothTransformation));
+    m_btnTypeA->setMinimumHeight(72); m_btnTypeA->setStyleSheet("font-size:28px;font-weight:bold;");
+    m_btnTypeB->setMinimumHeight(72); m_btnTypeB->setStyleSheet("font-size:28px;font-weight:bold;");
+    m_btnTypeC->setMinimumHeight(72); m_btnTypeC->setStyleSheet("font-size:28px;font-weight:bold;");
+    m_btnTypeD->setMinimumHeight(72); m_btnTypeD->setStyleSheet("font-size:28px;font-weight:bold;");
+    m_btnTypeE->setMinimumHeight(72); m_btnTypeE->setStyleSheet("font-size:28px;font-weight:bold;");
+    QHBoxLayout* rowA = new QHBoxLayout(); rowA->setSpacing(24); rowA->addWidget(m_iconTypeA); rowA->addWidget(m_btnTypeA);
+    QHBoxLayout* rowB = new QHBoxLayout(); rowB->setSpacing(24); rowB->addWidget(m_iconTypeB); rowB->addWidget(m_btnTypeB);
+    QHBoxLayout* rowC = new QHBoxLayout(); rowC->setSpacing(24); rowC->addWidget(m_iconTypeC); rowC->addWidget(m_btnTypeC);
+    QHBoxLayout* rowD = new QHBoxLayout(); rowD->setSpacing(24); rowD->addWidget(m_iconTypeD); rowD->addWidget(m_btnTypeD);
+    QHBoxLayout* rowE = new QHBoxLayout(); rowE->setSpacing(24); rowE->addWidget(m_iconTypeE); rowE->addWidget(m_btnTypeE);
+    controlLayout->addLayout(rowA); controlLayout->addLayout(rowB); controlLayout->addLayout(rowC); controlLayout->addLayout(rowD); controlLayout->addLayout(rowE);
+    // 让藻类选择区域占据右侧三分之一高度
+    controlGroup->setMinimumHeight(360); // 可根据实际右侧高度调整
     rightLayout->addWidget(controlGroup);
-    // 藻类说明分组
-    QGroupBox* infoA = new QGroupBox("藻类A属性"); infoA->setFont(groupFont);
-    QVBoxLayout* infoALayout = new QVBoxLayout(infoA);
-    QLabel* lblInfoA = new QLabel();
-    lblInfoA->setTextFormat(Qt::RichText);
-    lblInfoA->setText("<span style='color:#ffeb3b;font-weight:bold'>光照需求: 22/18/12<br>"
-                      "种植消耗: 糖×10, 蛋白×5<br>"
-                      "遮光效果: 下方1格, -8<br>"
-                      "消耗: N×1/秒, C×8/秒<br>"
-                      "产出: 糖×5/秒, 蛋白×2/秒<br>"
-                      "特性: 同类相邻减产</span>");
-    lblInfoA->setWordWrap(true); lblInfoA->setStyleSheet("font-size:15px; color:#333;"); infoALayout->addWidget(lblInfoA);
-    rightLayout->addWidget(infoA);
-    QGroupBox* infoB = new QGroupBox("藻类B属性"); infoB->setFont(groupFont);
-    QVBoxLayout* infoBLayout = new QVBoxLayout(infoB);
-    QLabel* lblInfoB = new QLabel();
-    lblInfoB->setTextFormat(Qt::RichText);
-    lblInfoB->setText("<span style='color:#ffeb3b;font-weight:bold'>光照需求: 18/14/10<br>"
-                      "种植消耗: 糖×8, 脂质×6, 维生素×2<br>"
-                      "遮光效果: 下方2格, 各-5<br>"
-                      "消耗: N×2/秒, C×6/秒<br>"
-                      "产出: 糖×3/秒, 脂质×4/秒, 维生素×1/秒<br>"
-                      "特性: 提升左右恢复速率</span>");
-    lblInfoB->setWordWrap(true); lblInfoB->setStyleSheet("font-size:15px; color:#333;"); infoBLayout->addWidget(lblInfoB);
-    rightLayout->addWidget(infoB);
-    QGroupBox* infoC = new QGroupBox("藻类C属性"); infoC->setFont(groupFont);
-    QVBoxLayout* infoCLayout = new QVBoxLayout(infoC);
-    QLabel* lblInfoC = new QLabel();
-    lblInfoC->setTextFormat(Qt::RichText);
-    lblInfoC->setText("<span style='color:#ffeb3b;font-weight:bold'>光照需求: 12/8/6<br>"
-                      "种植消耗: 糖×5, 蛋白×2, 维生素×8<br>"
-                      "遮光效果: 无<br>"
-                      "消耗: N×2/秒, C×12/秒<br>"
-                      "产出: 糖×3/秒, 蛋白×3/秒, 维生素×5/秒<br>"
-                      "特性: 与B连接时糖减产</span>");
-    lblInfoC->setWordWrap(true); lblInfoC->setStyleSheet("font-size:15px; color:#333;"); infoCLayout->addWidget(lblInfoC);
-    rightLayout->addWidget(infoC);
-    QGroupBox* infoD = new QGroupBox("藻类D属性"); infoD->setFont(groupFont);
-    QVBoxLayout* infoDLayout = new QVBoxLayout(infoD);
-    QLabel* lblInfoD = new QLabel();
-    lblInfoD->setTextFormat(Qt::RichText);
-    lblInfoD->setText("<span style='color:#ffeb3b;font-weight:bold'>光照需求: 16/12/8<br>"
-                      "种植消耗: 糖×12, 脂质×8, 蛋白×6, 维生素×6<br>"
-                      "遮光效果: 下方1格, -4<br>"
-                      "消耗: N×1.5/秒, C×7/秒<br>"
-                      "产出: 糖×2.5/秒, 脂质×1.5/秒, 蛋白×1.5/秒, 维生素×1.5/秒<br>"
-                      "特性: 与A/B/C型相邻时协同增益，双方产量+20%</span>");
-    lblInfoD->setWordWrap(true); lblInfoD->setStyleSheet("font-size:15px; color:#333;"); infoDLayout->addWidget(lblInfoD);
-    rightLayout->addWidget(infoD);
-    QGroupBox* infoE = new QGroupBox("藻类E属性"); infoE->setFont(groupFont);
-    QVBoxLayout* infoELayout = new QVBoxLayout(infoE);
-    QLabel* lblInfoE = new QLabel();
-    lblInfoE->setTextFormat(Qt::RichText);
-    lblInfoE->setText("<span style='color:#ffeb3b;font-weight:bold'>光照需求: 8/4/2<br>"
-                      "种植消耗: 糖×10, 脂质×6, 蛋白×4, 维生素×4<br>"
-                      "遮光效果: 无<br>"
-                      "消耗: N×1/秒, C×5/秒<br>"
-                      "产出: 糖×2/秒, 脂质×1/秒, 蛋白×1/秒, 维生素×1/秒<br>"
-                      "特性: 极低光照生存，为周围格子+4光照</span>");
-    lblInfoE->setWordWrap(true); lblInfoE->setStyleSheet("font-size:15px; color:#333;"); infoELayout->addWidget(lblInfoE);
-    rightLayout->addWidget(infoE);
     rightLayout->addStretch(1);
-
-    // 植株特性信息栏
-    m_traitInfoLabel = new QLabel(this);
-    m_traitInfoLabel->setWordWrap(true);
-    m_traitInfoLabel->setStyleSheet("color:#00bcd4;font-size:15px;font-weight:bold;background:rgba(0,0,0,0.08);border-radius:8px;padding:8px;margin-top:8px;");
-    m_traitInfoLabel->setText(
-        "<b>植株特性可视化说明：</b><br>"
-        "<span style='color:#e53935;'>🔴➖ A型藻类</span>：若与同类相邻，左上角出现红色圆底➖，所有产量减半。<br>"
-        "<span style='color:#43a047;'>🟢➕ B型藻类</span>：被左右B型邻居加速，右上角出现绿色圆底➕，恢复速率翻倍。<br>"
-        "<span style='color:#fbc02d;'>🟡❗ C型藻类</span>：与B型相邻时，右下角出现黄色圆底❗，糖产量减半。<br>"
-        "<span style='color:#2196f3;'>🔵★ D型藻类</span>：与A/B/C型相邻时，左下角出现蓝色圆底★，自身和邻居右下角↑，双方产量+20%。<br>"
-        "<span style='color:#888;'>■ 以上特性会在格子上实时高亮显示。</span>"
-    );
-    m_traitInfoScrollArea = new QScrollArea(this);
-    m_traitInfoScrollArea->setWidget(m_traitInfoLabel);
-    m_traitInfoScrollArea->setWidgetResizable(true);
-    m_traitInfoScrollArea->setFixedHeight(180);
-    m_traitInfoScrollArea->setStyleSheet("background:transparent;border:none;");
-    rightLayout->addWidget(m_traitInfoScrollArea);
-    // 详细特性说明按钮
+    // 新增：合并所有藻类属性为一个按钮，点击弹窗显示
+    QPushButton* btnAllAlgaeInfo = new QPushButton("查看所有藻类属性", this);
+    btnAllAlgaeInfo->setStyleSheet("font-size:22px;font-weight:bold;color:#fff;background:#388e3c;border-radius:12px;padding:14px 28px;margin:18px 0 18px 0;");
+    connect(btnAllAlgaeInfo, &QPushButton::clicked, this, [this]() {
+        QString info =
+            "<h2 style='color:#111;'>🌿 所有藻类属性</h2>"
+            "<b style='color:#111;'>A型藻类</b><br>"
+            "光照需求: 22/18/12<br>种植消耗: 糖×10, 蛋白×5<br>遮光效果: 下方1格, -8<br>消耗: N×1/秒, C×8/秒<br>产出: 糖×5/秒, 蛋白×2/秒<br>特性: 同类相邻减产<br><br>"
+            "<b style='color:#111;'>B型藻类</b><br>"
+            "光照需求: 18/14/10<br>种植消耗: 糖×8, 脂质×6, 维生素×2<br>遮光效果: 下方2格, 各-5<br>消耗: N×2/秒, C×6/秒<br>产出: 糖×3/秒, 脂质×4/秒, 维生素×1/秒<br>特性: 提升左右恢复速率<br><br>"
+            "<b style='color:#111;'>C型藻类</b><br>"
+            "光照需求: 12/8/6<br>种植消耗: 糖×5, 蛋白×2, 维生素×8<br>遮光效果: 无<br>消耗: N×2/秒, C×12/秒<br>产出: 糖×3/秒, 蛋白×3/秒, 维生素×5/秒<br>特性: 与B连接时糖减产<br><br>"
+            "<b style='color:#111;'>D型藻类</b><br>"
+            "光照需求: 16/12/8<br>种植消耗: 糖×12, 脂质×8, 蛋白×6, 维生素×6<br>遮光效果: 下方1格, -4<br>消耗: N×1.5/秒, C×7/秒<br>产出: 糖×2.5/秒, 脂质×1.5/秒, 蛋白×1.5/秒, 维生素×1.5/秒<br>特性: 与A/B/C型相邻时协同增益，双方产量+20%<br><br>"
+            "<b style='color:#111;'>E型藻类</b><br>"
+            "光照需求: 8/4/2<br>种植消耗: 糖×10, 脂质×6, 蛋白×4, 维生素×4<br>遮光效果: 无<br>消耗: N×1/秒, C×5/秒<br>产出: 糖×2/秒, 脂质×1/秒, 蛋白×1/秒, 维生素×1/秒<br>特性: 极低光照生存，为周围格子+4光照<br>";
+        QMessageBox box(this);
+        box.setWindowTitle("所有藻类属性");
+        QLabel* label = new QLabel(&box);
+        label->setTextFormat(Qt::RichText);
+        label->setText(info);
+        label->setWordWrap(true);
+        label->setStyleSheet("font-size:16px;color:#222;background:#fff;border-radius:8px;padding:16px;");
+        label->setMinimumWidth(760);
+        QScrollArea* scroll = new QScrollArea(&box);
+        scroll->setWidget(label);
+        scroll->setWidgetResizable(true);
+        scroll->setMinimumWidth(780);
+        scroll->setMinimumHeight(400);
+        box.layout()->addWidget(scroll);
+        box.setMinimumWidth(800);
+        box.setStandardButtons(QMessageBox::Ok);
+        box.exec();
+    });
+    rightLayout->addWidget(btnAllAlgaeInfo);
+    rightLayout->addStretch(1);
+    // 删除可视化说明栏（m_traitInfoLabel和m_traitInfoScrollArea）
+    // 放大详细特性说明按钮
     m_btnTraitDetail = new QPushButton("详细特性说明", this);
-    m_btnTraitDetail->setStyleSheet("font-size:14px;color:#fff;background:#1976d2;border-radius:8px;padding:6px 12px;margin-bottom:8px;");
+    m_btnTraitDetail->setStyleSheet("font-size:22px;font-weight:bold;color:#fff;background:#1976d2;border-radius:12px;padding:14px 28px;margin-bottom:12px;");
     connect(m_btnTraitDetail, &QPushButton::clicked, this, &MainWindow::showTraitDetailDialog);
     rightLayout->addWidget(m_btnTraitDetail);
 
