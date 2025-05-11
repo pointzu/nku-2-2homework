@@ -8,6 +8,7 @@ GameGrid::GameGrid(QWidget* parent)
     , m_rows(10)  // 默认值
     , m_cols(8)   // 默认值
     , m_selectedAlgaeType(AlgaeType::NONE)
+    , m_produceTimer(0.0)
 {
     m_layout->setSpacing(2);
     m_layout->setContentsMargins(2, 2, 2, 2);
@@ -201,7 +202,6 @@ void GameGrid::update(double deltaTime) {
                 AlgaeType::Properties props = AlgaeType::getProperties(cell->getType());
                 double nNeed = props.consumeRateN * deltaTime;
                 double cNeed = props.consumeRateC * deltaTime;
-                // 资源不足时状态变差
                 if (m_nitrogen[row][col] < nNeed || m_carbon[row][col] < cNeed) {
                     cell->setStatus(AlgaeCell::RESOURCE_LOW);
                 } else {
@@ -235,20 +235,26 @@ void GameGrid::update(double deltaTime) {
             }
         }
     }
-    // 3. 产出全局资源（只统计正常/资源低状态的产出）
-    double totalCarb = 0, totalLipid = 0, totalPro = 0, totalVit = 0;
-    for (int row = 0; row < m_rows; ++row) {
-        for (int col = 0; col < m_cols; ++col) {
-            AlgaeCell* cell = m_cells[row][col];
-            if (cell->isOccupied()) {
-                if (cell->getStatus() == AlgaeCell::NORMAL || cell->getStatus() == AlgaeCell::RESOURCE_LOW) {
-                    totalCarb += cell->getCarbProduction() * deltaTime;
-                    totalLipid += cell->getLipidProduction() * deltaTime;
-                    totalPro += cell->getProProduction() * deltaTime;
-                    totalVit += cell->getVitProduction() * deltaTime;
+    // 3. 产出资源逻辑：每10秒产出一次
+    m_produceTimer += deltaTime;
+    if (m_produceTimer >= 10.0) {
+        double totalCarb = 0, totalLipid = 0, totalPro = 0, totalVit = 0;
+        for (int row = 0; row < m_rows; ++row) {
+            for (int col = 0; col < m_cols; ++col) {
+                AlgaeCell* cell = m_cells[row][col];
+                if (cell->isOccupied()) {
+                    if (cell->getStatus() == AlgaeCell::NORMAL || cell->getStatus() == AlgaeCell::RESOURCE_LOW) {
+                        totalCarb += cell->getCarbProduction() * 10.0;
+                        totalLipid += cell->getLipidProduction() * 10.0;
+                        totalPro += cell->getProProduction() * 10.0;
+                        totalVit += cell->getVitProduction() * 10.0;
+                    }
                 }
             }
         }
+        // 通过信号或直接调用GameResources接口加资源（需适配你的架构）
+        emit produceResources(totalCarb, totalLipid, totalPro, totalVit);
+        m_produceTimer = 0.0;
     }
     // 4. 更新全局资源
     emit resourcesChanged(); // 通知UI刷新

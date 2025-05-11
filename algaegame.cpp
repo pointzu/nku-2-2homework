@@ -1,4 +1,5 @@
 #include "algaegame.h"
+#include "mainwindow.h"
 #include <QDateTime>
 
 AlgaeGame::AlgaeGame(QWidget* parent)
@@ -91,22 +92,45 @@ bool AlgaeGame::plantAlgae(int row, int col) {
     double vit = m_resources->getVitamins();
     double light = m_grid->getLightAt(row);
     bool canAfford = AlgaeType::canAfford(m_selectedAlgaeType, carb, lipid, pro, vit);
-    bool canReserve = true; // 允许预定
+    if (!canAfford) {
+        // 资源不足，不能种植，播放音效
+        QWidget* w = qobject_cast<QWidget*>(parent());
+        while (w && !w->inherits("MainWindow")) w = w->parentWidget();
+        if (w) {
+            auto mw = qobject_cast<MainWindow*>(w);
+            if (mw) mw->playEffect("buzzer.wav");
+        }
+        return false;
+    }
+    bool canReserve = true;
     AlgaeCell* cell = m_grid->getCell(row, col);
     if (cell) {
         AlgaeCell::PlantResult result = cell->plant(m_selectedAlgaeType, light, canAfford, canReserve);
         m_lastPlantResult = result;
         if (result == AlgaeCell::PLANT_SUCCESS) {
-            // 扣除资源
-            AlgaeType::deductPlantingCost(m_selectedAlgaeType, carb, lipid, pro, vit);
-            m_resources->subtractCarbohydrates(carb - m_resources->getCarbohydrates());
-            m_resources->subtractLipids(lipid - m_resources->getLipids());
-            m_resources->subtractProteins(pro - m_resources->getProteins());
-            m_resources->subtractVitamins(vit - m_resources->getVitamins());
+            AlgaeType::Properties props = AlgaeType::getProperties(m_selectedAlgaeType);
+            m_resources->subtractCarbohydrates(props.plantCostCarb);
+            m_resources->subtractLipids(props.plantCostLipid);
+            m_resources->subtractProteins(props.plantCostPro);
+            m_resources->subtractVitamins(props.plantCostVit);
+            // 播放种植音效
+            QWidget* w = qobject_cast<QWidget*>(parent());
+            while (w && !w->inherits("MainWindow")) w = w->parentWidget();
+            if (w) {
+                auto mw = qobject_cast<MainWindow*>(w);
+                if (mw) mw->playEffect("planted.wav");
+            }
             updateProductionRates();
             return true;
+        } else {
+            // 只要不是成功，全部播放buzzer音效
+            QWidget* w = qobject_cast<QWidget*>(parent());
+            while (w && !w->inherits("MainWindow")) w = w->parentWidget();
+            if (w) {
+                auto mw = qobject_cast<MainWindow*>(w);
+                if (mw) mw->playEffect("buzzer.wav");
+            }
         }
-        // 其他情况不扣资源
         updateProductionRates();
         return false;
     }

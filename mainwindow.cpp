@@ -55,6 +55,11 @@ void MainWindow::onGameWon() {
         resourceScore = 0.0;
         totalScore = static_cast<int>(rateScore + 0.5);
     }
+    // 检查是否完全达标
+    bool isFullWin = m_game->getResources()->checkWinCondition();
+    if (!isFullWin) {
+        totalScore /= 2;
+    }
     if (totalScore > m_highScore) m_highScore = totalScore;
     updateScoreBar();
     // 弹窗提示
@@ -74,6 +79,9 @@ void MainWindow::onGameWon() {
         .arg(vit).arg(vr)
         .arg(totalScore)
         .arg(m_highScore);
+    if (!isFullWin) {
+        msg += "\n注意：未完全达标，分数已减半。";
+    }
     QMessageBox::information(this, tr("胜利!"), msg);
 }
 
@@ -672,18 +680,39 @@ void MainWindow::setupUI() {
     // 藻类说明分组
     QGroupBox* infoA = new QGroupBox("藻类A属性"); infoA->setFont(groupFont);
     QVBoxLayout* infoALayout = new QVBoxLayout(infoA);
-    QLabel* lblInfoA = new QLabel("光照需求: 10/8/5\n种植消耗: 糖×10, 蛋白×5\n遮光效果: 下方1格, -5\n消耗: N×1/秒, C×8/秒\n产出: 糖×5/秒, 蛋白×2/秒\n特性: 同类相邻减产");
-    lblInfoA->setWordWrap(true); lblInfoA->setStyleSheet("font-size:13px; color:#333;"); infoALayout->addWidget(lblInfoA);
+    QLabel* lblInfoA = new QLabel();
+    lblInfoA->setTextFormat(Qt::RichText);
+    lblInfoA->setText("<span style='color:#ffeb3b;font-weight:bold'>光照需求: 22/18/12<br>"
+                      "种植消耗: 糖×10, 蛋白×5<br>"
+                      "遮光效果: 下方1格, -8<br>"
+                      "消耗: N×1/秒, C×8/秒<br>"
+                      "产出: 糖×5/秒, 蛋白×2/秒<br>"
+                      "特性: 同类相邻减产</span>");
+    lblInfoA->setWordWrap(true); lblInfoA->setStyleSheet("font-size:15px; color:#333;"); infoALayout->addWidget(lblInfoA);
     rightLayout->addWidget(infoA);
     QGroupBox* infoB = new QGroupBox("藻类B属性"); infoB->setFont(groupFont);
     QVBoxLayout* infoBLayout = new QVBoxLayout(infoB);
-    QLabel* lblInfoB = new QLabel("光照需求: 12/10/6\n种植消耗: 糖×8, 脂质×6, 维生素×2\n遮光效果: 下方2格, 各-3\n消耗: N×2/秒, C×6/秒\n产出: 糖×3/秒, 脂质×4/秒, 维生素×1/秒\n特性: 提升左右恢复速率");
-    lblInfoB->setWordWrap(true); lblInfoB->setStyleSheet("font-size:13px; color:#333;"); infoBLayout->addWidget(lblInfoB);
+    QLabel* lblInfoB = new QLabel();
+    lblInfoB->setTextFormat(Qt::RichText);
+    lblInfoB->setText("<span style='color:#ffeb3b;font-weight:bold'>光照需求: 18/14/10<br>"
+                      "种植消耗: 糖×8, 脂质×6, 维生素×2<br>"
+                      "遮光效果: 下方2格, 各-5<br>"
+                      "消耗: N×2/秒, C×6/秒<br>"
+                      "产出: 糖×3/秒, 脂质×4/秒, 维生素×1/秒<br>"
+                      "特性: 提升左右恢复速率</span>");
+    lblInfoB->setWordWrap(true); lblInfoB->setStyleSheet("font-size:15px; color:#333;"); infoBLayout->addWidget(lblInfoB);
     rightLayout->addWidget(infoB);
     QGroupBox* infoC = new QGroupBox("藻类C属性"); infoC->setFont(groupFont);
     QVBoxLayout* infoCLayout = new QVBoxLayout(infoC);
-    QLabel* lblInfoC = new QLabel("光照需求: 8/6/4\n种植消耗: 糖×5, 蛋白×2, 维生素×8\n遮光效果: 无\n消耗: N×2/秒, C×12/秒\n产出: 糖×3/秒, 蛋白×3/秒, 维生素×5/秒\n特性: 与B连接时糖减产");
-    lblInfoC->setWordWrap(true); lblInfoC->setStyleSheet("font-size:13px; color:#333;"); infoCLayout->addWidget(lblInfoC);
+    QLabel* lblInfoC = new QLabel();
+    lblInfoC->setTextFormat(Qt::RichText);
+    lblInfoC->setText("<span style='color:#ffeb3b;font-weight:bold'>光照需求: 12/8/6<br>"
+                      "种植消耗: 糖×5, 蛋白×2, 维生素×8<br>"
+                      "遮光效果: 无<br>"
+                      "消耗: N×2/秒, C×12/秒<br>"
+                      "产出: 糖×3/秒, 蛋白×3/秒, 维生素×5/秒<br>"
+                      "特性: 与B连接时糖减产</span>");
+    lblInfoC->setWordWrap(true); lblInfoC->setStyleSheet("font-size:15px; color:#333;"); infoCLayout->addWidget(lblInfoC);
     rightLayout->addWidget(infoC);
     rightLayout->addStretch(1);
 
@@ -894,6 +923,7 @@ void MainWindow::onResourcesChanged() {
     updateWinProgress();
     updateWinConditionLabels();
     updateScoreBar();
+    onProductionRatesChanged();
 }
 
 void MainWindow::onProductionRatesChanged() {
@@ -902,8 +932,6 @@ void MainWindow::onProductionRatesChanged() {
     m_lblLipidRate->setText(QString::number(resources->getLipidRate(), 'f', 1));
     m_lblProRate->setText(QString::number(resources->getProRate(), 'f', 1));
     m_lblVitRate->setText(QString::number(resources->getVitRate(), 'f', 1));
-    updateWinConditionLabels();
-    updateScoreBar();
 }
 
 void MainWindow::updateWinProgress() {

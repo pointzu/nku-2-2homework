@@ -47,6 +47,9 @@ public:
     // 新增：悬浮预判种植后光照
     double getLightAtIfPlanted(int row, int col, AlgaeType::Type type) const;
 
+    // 新增：每10秒产出一次的计时器
+    double m_produceTimer;
+
 signals:
     void cellChanged(int row, int col);
     void algaePlanted(int row, int col, AlgaeType::Type type);
@@ -56,6 +59,8 @@ signals:
     void gridUpdated();
     void cellClicked(int row, int col);
     void cellHovered(int row, int col, bool entered);
+    // 新增：每10秒产出一次的信号
+    void produceResources(double carb, double lipid, double pro, double vit);
 
 private slots:
     void onCellClicked(int row, int col);

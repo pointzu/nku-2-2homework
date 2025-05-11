@@ -29,6 +29,7 @@ public:
     ~MainWindow();
     AlgaeGame* getGame() const { return m_game; }
     bool isShadingPreviewEnabled() const { return m_showShadingPreview; }
+    void playEffect(const QString& name);
 
 protected:
     void keyPressEvent(QKeyEvent *event) override;
@@ -130,7 +131,6 @@ private:
     void updateWinConditionLabels();
     void updateScoreBar();
     void playBGM(double progress);
-    void playEffect(const QString& name);
 };
 
 // Helper widget for grid cells

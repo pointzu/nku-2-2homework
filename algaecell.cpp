@@ -55,7 +55,7 @@ enum PlantResult {
 // 种植函数
 AlgaeCell::PlantResult AlgaeCell::plant(AlgaeType::Type type, double lightLevel, bool canAfford, bool canReserve) {
     if (isOccupied()) {
-        playSound("qrc:/sounds/buzzer.wav");
+        playSound("qrc:/../resources/buzzer.wav");
         return AlgaeCell::PLANT_OCCUPIED;
     }
     AlgaeType::Properties props = AlgaeType::getProperties(type); // 获取属性
@@ -75,7 +75,6 @@ AlgaeCell::PlantResult AlgaeCell::plant(AlgaeType::Type type, double lightLevel,
     }
     if (!canAfford) {
         if (canReserve) {
-            playSound("qrc:/sounds/buzzer.wav");
             m_type = type;
             m_properties = props;
             m_status = RESOURCE_LOW;
@@ -83,7 +82,6 @@ AlgaeCell::PlantResult AlgaeCell::plant(AlgaeType::Type type, double lightLevel,
             emit cellChanged();
             return AlgaeCell::PLANT_RESERVED;
         } else {
-            playSound("qrc:/sounds/buzzer.wav");
             return AlgaeCell::PLANT_RESOURCE_LOW;
         }
     }
@@ -94,13 +92,12 @@ AlgaeCell::PlantResult AlgaeCell::plant(AlgaeType::Type type, double lightLevel,
     m_productionMultiplier = 1.0;
     m_timeSinceLightLow = 0.0;
     emit cellChanged();
-    playSound("qrc:/../resources/st30f0n665joahrrvuj05fechvwkcv10/planted.wav");
     return AlgaeCell::PLANT_SUCCESS;
 }
 
 void AlgaeCell::remove() {
     if (isOccupied()) {
-        playSound("qrc:/sounds/displant.wav");
+        playSound("qrc:/../resources/displant.wav");
         m_type = AlgaeType::NONE;
         m_properties = AlgaeType::getProperties(m_type);
         m_status = NORMAL;
@@ -158,16 +155,24 @@ void AlgaeCell::paintEvent(QPaintEvent* event)
     painter.setRenderHint(QPainter::Antialiasing);
 
     QRect cellRect = rect();
-    painter.fillRect(cellRect, QColor(240, 240, 240));
+    // 1. 背景色随光照强度变化
+    double light = m_grid ? m_grid->getLightAt(m_row, m_col) : 0.0;
+    double maxLight = 30.0, minLight = 0.0;
+    double ratio = (light - minLight) / (maxLight - minLight);
+    ratio = qBound(0.0, ratio, 1.0);
+    QColor bgColor = QColor::fromHsv(210, 30, 220 * ratio + 30 * (1 - ratio));
+    painter.fillRect(cellRect, bgColor);
 
-    // 绘制遮荫区域
+    // 2. 遮荫区颜色随遮光强度变化
     if (m_showShadingArea && m_type != AlgaeType::NONE) {
+        int shade = m_grid ? m_grid->calculateShadingAt(m_row, m_col) : 0;
+        int alpha = qBound(30, 30 + shade * 10, 180);
         QColor shadingColor = m_properties.shadingColor;
-        shadingColor.setAlpha(100);
+        shadingColor.setAlpha(alpha);
         painter.fillRect(cellRect, shadingColor);
     }
 
-    // 绘制藻类
+    // 3. 藻类图片
     if (m_type != AlgaeType::NONE) {
         QString imagePath = m_properties.imagePath;
         if (m_isSelected) {
@@ -181,33 +186,66 @@ void AlgaeCell::paintEvent(QPaintEvent* event)
         }
     }
 
-    // 绘制状态指示器
-    if (m_status != NORMAL) {
-        QColor statusColor;
-        switch (m_status) {
-            case RESOURCE_LOW:
-                statusColor = QColor(255, 165, 0);
-                break;
-            case LIGHT_LOW:
-                statusColor = QColor(255, 0, 0);
-                break;
-            case DYING:
-                statusColor = QColor(128, 0, 0);
-                break;
-            default:
-                break;
-        }
-        painter.setPen(QPen(statusColor, 2));
-        painter.drawRect(cellRect.adjusted(1, 1, -1, -1));
+    // 4. 光照不足高亮/闪烁边框
+    if (m_status == LIGHT_LOW || m_status == DYING) {
+        QColor statusColor = (m_status == DYING) ? QColor(255,0,128) : QColor(255,0,0);
+        int penWidth = 4;
+        painter.setPen(QPen(statusColor, penWidth));
+        painter.drawRect(cellRect.adjusted(2,2,-2,-2));
+    } else if (m_status == RESOURCE_LOW) {
+        painter.setPen(QPen(QColor(255,165,0), 3));
+        painter.drawRect(cellRect.adjusted(2,2,-2,-2));
     }
 
-    // 悬浮高亮
+    // 5. 悬浮高亮和光照数值/可种植状态
     if (m_isHovered) {
         QColor hoverColor = QColor(255, 255, 0, 120);
-        painter.setPen(QPen(hoverColor, 5, Qt::SolidLine));
-        painter.drawRect(cellRect.adjusted(2, 2, -2, -2));
-        QColor fillColor = QColor(255, 255, 180, 80);
-        painter.fillRect(cellRect.adjusted(6, 6, -6, -6), fillColor);
+        painter.setPen(QPen(hoverColor, 3, Qt::DashLine));
+        painter.drawRect(cellRect.adjusted(4, 4, -4, -4));
+        // 显示光照数值和可种植状态
+        AlgaeType::Type selType = m_type;
+        if (m_grid && !isOccupied()) {
+            MainWindow* mw = nullptr;
+            QWidget* w = m_grid->parentWidget();
+            while (w && !mw) { mw = qobject_cast<MainWindow*>(w); w = w->parentWidget(); }
+            if (mw) selType = mw->getGame()->getSelectedAlgaeType();
+        }
+        QString info;
+        if (selType != AlgaeType::NONE) {
+            AlgaeType::Properties props = AlgaeType::getProperties(selType);
+            if (light < props.lightRequiredPlant) {
+                info = "光照不足";
+            } else {
+                info = "可种植";
+            }
+            info += QString(" 光照:%1").arg((int)light);
+        } else {
+            info = QString("光照:%1").arg((int)light);
+        }
+        painter.setPen(Qt::black);
+        painter.setFont(QFont("微软雅黑", 10, QFont::Bold));
+        painter.drawText(cellRect.adjusted(0,0,0,-cellRect.height()/2), Qt::AlignCenter, info);
+    }
+
+    // 5. 网格右侧竖排高亮显示资源数值（氮、碳、光照）
+    if (m_grid) {
+        double n = m_grid->getNitrogenAt(m_row, m_col);
+        double c = m_grid->getCarbonAt(m_row, m_col);
+        double l = m_grid->getLightAt(m_row, m_col);
+        QFont font = painter.font();
+        font.setPointSize(10);
+        font.setBold(true);
+        painter.setFont(font);
+        int margin = 4;
+        int spacing = 18;
+        int x = cellRect.right() - 48 + margin; // 靠右侧
+        int y = cellRect.top() + margin;
+        painter.setPen(QColor("#00e676"));
+        painter.drawText(x, y + spacing * 0, QString("N:%1").arg(n, 0, 'f', 1));
+        painter.setPen(QColor("#29b6f6"));
+        painter.drawText(x, y + spacing * 1, QString("C:%1").arg(c, 0, 'f', 1));
+        painter.setPen(QColor("#ffd600"));
+        painter.drawText(x, y + spacing * 2, QString("L:%1").arg(l, 0, 'f', 1));
     }
 }
 
@@ -248,25 +286,15 @@ void AlgaeCell::updateProductionRates() {
         return;
     }
     AlgaeType::Properties props = AlgaeType::getProperties(m_type);
-    double statusMultiplier = 1.0;
-    switch (m_status) {
-        case LIGHT_LOW:
-            statusMultiplier = 0.5;
-            break;
-        case RESOURCE_LOW:
-            statusMultiplier = 0.7;
-            break;
-        case DYING:
-            statusMultiplier = 0.0;
-            break;
-        default:
-            statusMultiplier = 1.0;
-            break;
-    }
-    m_carbProduction = props.produceRateCarb * statusMultiplier;
-    m_lipidProduction = props.produceRateLipid * statusMultiplier;
-    m_proProduction = props.produceRatePro * statusMultiplier;
-    m_vitProduction = props.produceRateVit * statusMultiplier;
+    double light = m_grid ? m_grid->getLightAt(m_row, m_col) : 0.0;
+    // 产量倍率与光照线性关联
+    double ratio = (light - props.lightRequiredSurvive) / (props.lightRequiredPlant - props.lightRequiredSurvive);
+    ratio = qBound(0.0, ratio, 1.0);
+    m_productionMultiplier = ratio;
+    m_carbProduction = props.produceRateCarb * m_productionMultiplier;
+    m_lipidProduction = props.produceRateLipid * m_productionMultiplier;
+    m_proProduction = props.produceRatePro * m_productionMultiplier;
+    m_vitProduction = props.produceRateVit * m_productionMultiplier;
 }
 
 void AlgaeCell::setStatus(Status status) {
