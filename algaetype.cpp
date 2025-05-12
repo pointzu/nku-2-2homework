@@ -6,7 +6,7 @@ AlgaeType::Properties AlgaeType::getProperties(Type type) {
     Properties props;
     switch (type) {
         case TYPE_A:
-            props.name = "小型藻类 A";
+            props.name = "螺旋藻 Spirulina";
             props.lightRequiredPlant = 22;      // 种植所需光照
             props.lightRequiredMaintain = 18;   // 维持所需光照
             props.lightRequiredSurvive = 12;    // 存活所需光照
@@ -30,7 +30,7 @@ AlgaeType::Properties AlgaeType::getProperties(Type type) {
             break;
 
         case TYPE_B:
-            props.name = "小型藻类 B";
+            props.name = "小球藻 Chlorella";
             props.lightRequiredPlant = 18;
             props.lightRequiredMaintain = 14;
             props.lightRequiredSurvive = 10;
@@ -54,7 +54,7 @@ AlgaeType::Properties AlgaeType::getProperties(Type type) {
             break;
 
         case TYPE_C:
-            props.name = "小型藻类 C";
+            props.name = "小型硅藻 Cyclotella";
             props.lightRequiredPlant = 12;
             props.lightRequiredMaintain = 8;
             props.lightRequiredSurvive = 6;
@@ -78,7 +78,7 @@ AlgaeType::Properties AlgaeType::getProperties(Type type) {
             break;
 
         case TYPE_D:
-            props.name = "协同藻类 D";
+            props.name = "裸藻 Euglena";
             props.lightRequiredPlant = 16;
             props.lightRequiredMaintain = 12;
             props.lightRequiredSurvive = 8;
@@ -102,7 +102,7 @@ AlgaeType::Properties AlgaeType::getProperties(Type type) {
             break;
 
         case TYPE_E:
-            props.name = "光源藻类 E";
+            props.name = "蓝藻 Cyanobacteria";
             props.lightRequiredPlant = 8;
             props.lightRequiredMaintain = 4;
             props.lightRequiredSurvive = 2;

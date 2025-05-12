@@ -211,6 +211,11 @@ void AlgaeCell::paintEvent(QPaintEvent* event)
 
     // --- 藻类特性可视化 ---
     if (isOccupied()) {
+        // 螺旋藻（Spirulina）相关
+        // 小球藻（Chlorella）相关
+        // 小型硅藻（Cyclotella）相关
+        // 裸藻（Euglena）相关
+        // 蓝藻（Cyanobacteria）相关
         // A型相邻减产：左上角红色圆底白色粗体"-"
         if (m_type == AlgaeType::TYPE_A && isReducedByNeighborA()) {
             painter.save();

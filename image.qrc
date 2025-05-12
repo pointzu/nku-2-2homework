@@ -126,5 +126,7 @@
         <file>../resources/displant_fixed.wav</file>
         <file>../resources/st30f0n665joahrrvuj05fechvwkcv10/type_d.png</file>
         <file>../resources/st30f0n665joahrrvuj05fechvwkcv10/type_e.png</file>
+        <file>background.jpg</file>
+        <file>startbackground.jpg</file>
     </qresource>
 </RCC>

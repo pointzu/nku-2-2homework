@@ -33,6 +33,7 @@
 #include <QTextDocument>  // 文本文档
 #include <QScrollArea>    // 滚动区域
 #include <QPushButton>    // 按钮
+#include <QDialog>
 
 // =================== CellWidget实现部分 ===================
 // 游戏胜利时的处理函数
@@ -616,9 +617,57 @@ void CellWidget::leaveEvent(QEvent* event) {
 }
 
 // =================== MainWindow实现部分 ===================
+StartWindow::StartWindow(QWidget* parent) : QDialog(parent) {
+    setWindowTitle("Algae");
+    setModal(true);
+    setFixedSize(700, 480);
+    // 只设置背景色，图片在paintEvent绘制
+    setStyleSheet("");
+    QVBoxLayout* layout = new QVBoxLayout(this);
+    layout->setAlignment(Qt::AlignCenter);
+    btnStart = new QPushButton("开始游戏", this);
+    btnStart->setMinimumHeight(48);
+    btnStart->setStyleSheet("font-size:28px;font-weight:bold;color:#fff;background:#43a047;border-radius:12px;margin:24px 0;");
+    layout->addWidget(btnStart);
+    btnInfo = new QPushButton("游戏说明", this);
+    btnInfo->setMinimumHeight(36);
+    btnInfo->setStyleSheet("font-size:22px;font-weight:bold;color:#fff;background:#1976d2;border-radius:12px;margin-bottom:12px;");
+    layout->addWidget(btnInfo);
+    connect(btnStart, &QPushButton::clicked, this, [this]() { accept(); });
+}
+
+void StartWindow::paintEvent(QPaintEvent* event) {
+    QPainter painter(this);
+    QPixmap bg(":/startbackground.jpg");
+    if (!bg.isNull()) {
+        painter.drawPixmap(rect(), bg);
+    }
+    QDialog::paintEvent(event);
+}
+
+void MainWindow::paintEvent(QPaintEvent* event) {
+    QPainter painter(this);
+    QPixmap bg(":/background.jpg");
+    if (!bg.isNull()) {
+        painter.drawPixmap(rect(), bg);
+    }
+    QMainWindow::paintEvent(event);
+}
+
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
 {
+    // 启动界面
+    StartWindow startWin;
+    connect(startWin.btnInfo, &QPushButton::clicked, [&]() {
+        QMessageBox::information(&startWin, "游戏说明",
+            "欢迎来到水藻策略游戏！\n\n目标：\n- 合理布局不同类型藻类，提升资源产量，达成通关条件。\n\n操作：\n- 左键放置藻类，右键移除藻类。\n- 鼠标悬浮查看格子资源。\n- ESC 打开菜单。\n\n胜利条件：\n- 糖类≥500，脂质≥300，蛋白质≥200，维生素≥100，且生产速率达标。\n\n祝你游戏愉快！");
+    });
+    if (startWin.exec() != QDialog::Accepted) {
+        qApp->exit();
+        return;
+    }
+
     m_progressBar = new QProgressBar(this); // 进度条
     m_lblCarb = new QLabel(this);           // 糖类标签
     m_lblLipid = new QLabel(this);          // 脂质标签
@@ -628,11 +677,11 @@ MainWindow::MainWindow(QWidget *parent)
     m_lblLipidRate = new QLabel(this);      // 脂质速率标签
     m_lblProRate = new QLabel(this);        // 蛋白质速率标签
     m_lblVitRate = new QLabel(this);        // 维生素速率标签
-    m_btnTypeA = new QPushButton("小型藻类 A", this); // A型按钮
-    m_btnTypeB = new QPushButton("小型藻类 B", this); // B型按钮
-    m_btnTypeC = new QPushButton("小型藻类 C", this); // C型按钮
-    m_btnTypeD = new QPushButton("协同藻类 D", this); // D型按钮
-    m_btnTypeE = new QPushButton("光源藻类 E", this); // E型按钮
+    m_btnTypeA = new QPushButton("螺旋藻 Spirulina", this); // 螺旋藻按钮
+    m_btnTypeB = new QPushButton("小球藻 Chlorella", this); // 小球藻按钮
+    m_btnTypeC = new QPushButton("小型硅藻 Cyclotella", this); // 小型硅藻按钮
+    m_btnTypeD = new QPushButton("裸藻 Euglena", this); // 裸藻按钮
+    m_btnTypeE = new QPushButton("蓝藻 Cyanobacteria", this); // 蓝藻按钮
     m_iconTypeA = new QLabel(this); // A型图标
     m_iconTypeB = new QLabel(this); // B型图标
     m_iconTypeC = new QLabel(this); // C型图标
@@ -690,7 +739,7 @@ MainWindow::MainWindow(QWidget *parent)
     connectSignals();         // 连接信号槽
     initializeCellWidgets();  // 初始化格子控件
 
-    setWindowTitle(tr("Algae - 水藻培养策略游戏")); // 设置窗口标题
+    setWindowTitle(tr("Algae")); // 设置窗口标题
     setMinimumSize(1024, 768); // 最小尺寸
     showFullScreen(); // 启动全屏
     restartGame(); // 启动自动重开一局
@@ -708,13 +757,14 @@ void MainWindow::setupUI() {
     QHBoxLayout* mainLayout = new QHBoxLayout(central);
     mainLayout->setContentsMargins(10, 10, 10, 10);
     mainLayout->setSpacing(10);
-    central->setStyleSheet("background: #222;");
+    // 移除背景图片QSS，交由paintEvent处理
+    // central->setStyleSheet("background-image: url('qrc:/background.jpg'); background-repeat: no-repeat; background-position: center; background-size: cover;");
 
     // 左侧：资源、速率、进度、说明
     QWidget* leftPanel = new QWidget;
     QVBoxLayout* leftLayout = new QVBoxLayout(leftPanel);
     leftLayout->setSpacing(10);
-    leftPanel->setStyleSheet("background: #222;");
+    leftPanel->setStyleSheet("background: rgba(30,30,30,0.75); border-radius: 16px;");
 
     // 进度条
     QGroupBox* progressGroup = new QGroupBox("通关进度");
@@ -801,6 +851,7 @@ void MainWindow::setupUI() {
 
     // 中间：网格（自适应拉伸，最大化）
     QWidget* centerPanel = new QWidget;
+    centerPanel->setStyleSheet("background: rgba(30,30,30,0); border-radius: 16px;");
     QVBoxLayout* centerLayout = new QVBoxLayout(centerPanel);
     centerLayout->setContentsMargins(0, 0, 0, 0);
     centerLayout->setSpacing(0);
@@ -845,15 +896,15 @@ void MainWindow::setupUI() {
     connect(btnAllAlgaeInfo, &QPushButton::clicked, this, [this]() {
         QString info =
             "<h2 style='color:#111;'>🌿 所有藻类属性</h2>"
-            "<b style='color:#111;'>A型藻类</b><br>"
+            "<b style='color:#111;'>螺旋藻 Spirulina</b><br>"
             "光照需求: 22/18/12<br>种植消耗: 糖×10, 蛋白×5<br>遮光效果: 下方1格, -8<br>消耗: N×1/秒, C×8/秒<br>产出: 糖×5/秒, 蛋白×2/秒<br>特性: 同类相邻减产<br><br>"
-            "<b style='color:#111;'>B型藻类</b><br>"
+            "<b style='color:#111;'>小球藻 Chlorella</b><br>"
             "光照需求: 18/14/10<br>种植消耗: 糖×8, 脂质×6, 维生素×2<br>遮光效果: 下方2格, 各-5<br>消耗: N×2/秒, C×6/秒<br>产出: 糖×3/秒, 脂质×4/秒, 维生素×1/秒<br>特性: 提升左右恢复速率<br><br>"
-            "<b style='color:#111;'>C型藻类</b><br>"
-            "光照需求: 12/8/6<br>种植消耗: 糖×5, 蛋白×2, 维生素×8<br>遮光效果: 无<br>消耗: N×2/秒, C×12/秒<br>产出: 糖×3/秒, 蛋白×3/秒, 维生素×5/秒<br>特性: 与B连接时糖减产<br><br>"
-            "<b style='color:#111;'>D型藻类</b><br>"
-            "光照需求: 16/12/8<br>种植消耗: 糖×12, 脂质×8, 蛋白×6, 维生素×6<br>遮光效果: 下方1格, -4<br>消耗: N×1.5/秒, C×7/秒<br>产出: 糖×2.5/秒, 脂质×1.5/秒, 蛋白×1.5/秒, 维生素×1.5/秒<br>特性: 与A/B/C型相邻时协同增益，双方产量+20%<br><br>"
-            "<b style='color:#111;'>E型藻类</b><br>"
+            "<b style='color:#111;'>小型硅藻 Cyclotella</b><br>"
+            "光照需求: 12/8/6<br>种植消耗: 糖×5, 蛋白×2, 维生素×8<br>遮光效果: 无<br>消耗: N×2/秒, C×12/秒<br>产出: 糖×3/秒, 蛋白×3/秒, 维生素×5/秒<br>特性: 与小球藻连接时糖减产<br><br>"
+            "<b style='color:#111;'>裸藻 Euglena</b><br>"
+            "光照需求: 16/12/8<br>种植消耗: 糖×12, 脂质×8, 蛋白×6, 维生素×6<br>遮光效果: 下方1格, -4<br>消耗: N×1.5/秒, C×7/秒<br>产出: 糖×2.5/秒, 脂质×1.5/秒, 蛋白×1.5/秒, 维生素×1.5/秒<br>特性: 与螺旋藻/小球藻/小型硅藻相邻时协同增益，双方产量+20%<br><br>"
+            "<b style='color:#111;'>蓝藻 Cyanobacteria</b><br>"
             "光照需求: 8/4/2<br>种植消耗: 糖×10, 脂质×6, 蛋白×4, 维生素×4<br>遮光效果: 无<br>消耗: N×1/秒, C×5/秒<br>产出: 糖×2/秒, 脂质×1/秒, 蛋白×1/秒, 维生素×1/秒<br>特性: 极低光照生存，为周围格子+4光照<br>";
         QMessageBox box(this);
         box.setWindowTitle("所有藻类属性");
@@ -1261,11 +1312,17 @@ void MainWindow::updateScoreBar() {
         resourceScore = 0.0;
         totalScore = static_cast<int>(rateScore + 0.5);
     }
+    // 检查是否完全达标
+    bool isFullWin = m_game->getResources()->checkWinCondition();
+    if (!isFullWin) {
+        totalScore /= 2; // 未完全达标分数减半
+    }
     if (totalScore > m_highScore) m_highScore = totalScore;
     m_scoreLabel->setText(QString("分数：%1   最高分：%2").arg(totalScore).arg(m_highScore));
     // 新增分数简介信息栏内容
     QString hint;
-    if (totalScore < 60) hint = "继续努力，优化藻类布局！";
+    if (!isFullWin) hint = "当前未完全达标，分数已减半！";
+    else if (totalScore < 60) hint = "继续努力，优化藻类布局！";
     else if (totalScore < 80) hint = "良好，距离目标不远了！";
     else if (totalScore < 100) hint = "优秀，快达成极限生产！";
     else hint = "极限挑战，追求更高分数！";
@@ -1276,9 +1333,9 @@ void MainWindow::updateScoreBar() {
         "资源得分：%1\n"
         "速率得分：%2\n"
         "总分：%3\n"
-        "资源得分 = (糖/500 + 脂/300 + 蛋白/200 + 维生素/100) / 4 × 50<br>"
-        "速率得分 = (糖速/50 + 脂速/30 + 蛋白速/20 + 维生素速/10) / 4 × 50<br>"
-        "总分 = 资源得分 + 速率得分（满100分后只看速率得分）</span>"
+        "资源得分 = (糖/500 + 脂/300 + 蛋白/200 + 维生素/100) / 4 × 50\n"
+        "速率得分 = (糖速/50 + 脂速/30 + 蛋白速/20 + 维生素速/10) / 4 × 50\n"
+        "总分 = 资源得分 + 速率得分（满100分后只看速率得分）"
     ).arg(QString::number(resourceScore, 'f', 1))
      .arg(QString::number(rateScore, 'f', 1))
      .arg(QString::number(totalScore));
@@ -1316,39 +1373,39 @@ void MainWindow::showTraitDetailDialog() {
     QLabel* label = new QLabel(&dlg);
     label->setWordWrap(true);
     label->setText("<h2 style='color:#1976d2;'>🌿 植株详细特性说明</h2><hr>"
-        "<b style='color:#e53935;font-size:17px;'>🔴➖ A型藻类</b><br>"
+        "<b style='color:#e53935;font-size:17px;'>🔴➖ 螺旋藻 Spirulina</b><br>"
         "<ul style='margin-top:0;'>"
-        "<li>若与同类（A型）相邻（上下左右），所有产量减半，格子左上角出现红色圆底➖。</li>"
+        "<li>若与同类相邻（上下左右），所有产量减半，格子左上角出现红色圆底➖。</li>"
         "<li>遮光深度1格，遮光强度8，下方格子光照降低。</li>"
         "<li>产出：糖×5/秒，蛋白×2/秒。</li>"
         "<li>消耗：N×1/秒，C×8/秒。</li>"
-        "<li>适合单独种植或与B/C型错开布局，避免A型连片。</li>"
+        "<li>适合单独种植或与小球藻/小型硅藻错开布局，避免 螺旋藻连片。</li>"
         "</ul>"
-        "<b style='color:#43a047;font-size:17px;'>🟢➕ B型藻类</b><br>"
+        "<b style='color:#43a047;font-size:17px;'>🟢➕ 小球藻 Chlorella</b><br>"
         "<ul style='margin-top:0;'>"
-        "<li>被左右B型邻居加速，恢复速率翻倍，格子右上角出现绿色圆底➕。</li>"
+        "<li>被左右小球藻邻居加速，恢复速率翻倍，格子右上角出现绿色圆底➕。</li>"
         "<li>遮光深度2格，遮光强度5，下方两格光照降低。</li>"
         "<li>产出：糖×3/秒，脂质×4/秒，维生素×1/秒。</li>"
         "<li>消耗：N×2/秒，C×6/秒。</li>"
         "<li>适合横向连片种植，提升整体资源恢复速度。</li>"
         "</ul>"
-        "<b style='color:#fbc02d;font-size:17px;'>🟡❗ C型藻类</b><br>"
+        "<b style='color:#fbc02d;font-size:17px;'>🟡❗小型硅藻 Cyclotella</b><br>"
         "<ul style='margin-top:0;'>"
-        "<li>与B型相邻时，糖产量减半，格子右下角出现黄色圆底❗。</li>"
+        "<li>与小球藻相邻时，糖产量减半，格子右下角出现黄色圆底❗。</li>"
         "<li>无遮光，不影响下方光照。</li>"
         "<li>产出：糖×3/秒，蛋白×3/秒，维生素×5/秒。</li>"
         "<li>消耗：N×2/秒，C×12/秒。</li>"
-        "<li>适合与A型、B型错开混合，避免与B型直接相邻。</li>"
+        "<li>适合与螺旋藻、小球藻错开混合，避免与小球藻直接相邻。</li>"
         "</ul>"
-        "<b style='color:#2196f3;font-size:17px;'>🔵★ D型藻类</b><br>"
+        "<b style='color:#2196f3;font-size:17px;'>🔵★裸藻 Euglena</b><br>"
         "<ul style='margin-top:0;'>"
-        "<li>与A/B/C型相邻时，自己和邻居产量+20%，自身左下角出现蓝色圆底★，邻居右下角出现蓝色圆底↑。</li>"
+        "<li>与螺旋藻/小球藻/小型硅藻相邻时，自己和邻居产量+20%，自身左下角出现蓝色圆底★，邻居右下角出现蓝色圆底↑。</li>"
         "<li>遮光深度1格，遮光强度4，下方格子光照降低。</li>"
         "<li>产出：糖×2.5/秒，脂质×1.5/秒，蛋白×1.5/秒，维生素×1.5/秒。</li>"
         "<li>消耗：N×1.5/秒，C×7/秒。</li>"
-        "<li>适合作为布局核心，提升整体产量，建议与A/B/C型交错布局。</li>"
+        "<li>适合作为布局核心，提升整体产量，建议与螺旋藻/小球藻/小型硅藻交错布局。</li>"
         "</ul>"
-        "<b style='color:#ffeb3b;font-size:17px;'>🟣🔘 E型藻类</b><br>"
+        "<b style='color:#ffeb3b;font-size:17px;'>🟣🔘 蓝藻 Cyanobacteria</b><br>"
         "<ul style='margin-top:0;'>"
         "<li>极低光照生存，为周围格子+4光照。</li>"
         "<li>无遮光，不影响下方光照。</li>"
@@ -1359,11 +1416,11 @@ void MainWindow::showTraitDetailDialog() {
         "<hr>"
         "<b style='color:#1976d2;'>机制补充与策略建议：</b><br>"
         "<ul style='margin-top:0;'>"
-        "<li><b>遮光机制：</b> 上方藻类会降低下方格子的光照，影响种植和产量。A型遮1格，B型遮2格，C型无遮光，D型遮1格，E型无遮光。</li>"
+        "<li><b>遮光机制：</b> 上方藻类会降低下方格子的光照，影响种植和产量。 螺旋藻遮1格，小球藻 遮2格，小型硅藻 无遮光，裸藻遮1格，蓝藻 无遮光。</li>"
         "<li><b>资源消耗与恢复：</b> 每种藻类消耗氮/碳不同，B型横向连片可提升左右格的资源恢复速度。</li>"
         "<li><b>特性高亮：</b> 当格子被特性影响时，会在对应角落显示彩色圆形+符号，便于直观识别。</li>"
-        "<li><b>布局建议：</b> 合理错开A/B/C/D/E型，利用B型加速、D型协同、E型补光，避免A型连片和C型与B型直接相邻，可最大化资源产出。</li>"
-        "<li><b>示例：</b> A-E-B-D-C 这种横向布局，E型可补光，D型可协同两侧A/B/C，提升整体产量。</li>"
+        "<li><b>布局建议：</b> 合理错开螺旋藻/小球藻/小型硅藻/裸藻/蓝藻，利用小球藻加速、裸藻协同、蓝藻补光，避免螺旋藻连片和小型硅藻与小球藻直接相邻，可最大化资源产出。</li>"
+        "<li><b>示例：</b> 螺旋藻-蓝藻-小球藻-裸藻-小型硅藻 这种横向布局，蓝藻可补光，裸藻可协同两侧螺旋藻/小球藻/小型硅藻，提升整体产量。</li>"
         "</ul>"
         "<hr>"
                    "<b style='color:#1976d2;font-size:17px;'>常见状态说明与应对措施</b><br>"

@@ -20,6 +20,7 @@
 #include <QMap>           // Qt字典
 #include <QScrollArea>    // 滚动区域
 #include <QPixmap>         // 像素图
+#include <QDialog>
 
 class CellWidget; // 前置声明，格子控件
 
@@ -38,6 +39,7 @@ public:
 protected:
     void keyPressEvent(QKeyEvent *event) override;   // 键盘按下事件
     void keyReleaseEvent(QKeyEvent *event) override; // 键盘释放事件
+    void paintEvent(QPaintEvent* event) override;
 
 private slots:
     void onCellClicked(int row, int col);        // 单元格左键点击槽
@@ -183,6 +185,17 @@ private:
     int m_col;           // 列号
     AlgaeCell* m_cell = nullptr; // 对应的藻类单元格
     bool m_hovered = false;      // 是否悬浮
+};
+
+// 启动界面窗口类
+class StartWindow : public QDialog {
+    Q_OBJECT
+public:
+    explicit StartWindow(QWidget* parent = nullptr);
+    QPushButton* btnStart;
+    QPushButton* btnInfo;
+protected:
+    void paintEvent(QPaintEvent* event) override;
 };
 
 #endif // MAINWINDOW_H
