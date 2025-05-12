@@ -67,27 +67,20 @@ void MainWindow::onGameWon() {
     }
     if (totalScore > m_highScore) m_highScore = totalScore; // 更新最高分
     updateScoreBar(); // 刷新分数栏
-    // 弹窗提示
-    QString msg = tr("恭喜! 你已经成功建立了一个高效且可持续发展的藻类生态系统!\n\n"
-        "你的最终成绩:\n"
-        "- 糖类: %.1f (产量: %.1f/秒)\n"
-        "- 脂质: %.1f (产量: %.1f/秒)\n"
-        "- 蛋白质: %.1f (产量: %.1f/秒)\n"
-        "- 维生素: %.1f (产量: %.1f/秒)\n"
-        "\n评分: %3 分\n最高分: %4 分\n\n"
-        "你可以继续挑战，尝试达到更高的资源饱和度和更优的生产组合!\n"
-        "（继续游戏可自由优化布局，追求极限分数）"
-        )
-        .arg(carb).arg(cr)
-        .arg(lipid).arg(lr)
-        .arg(pro).arg(pr)
-        .arg(vit).arg(vr)
-        .arg(totalScore)
-        .arg(m_highScore);
+    // 优化弹窗内容
+    QString msg = tr("恭喜你通关！你已建立高效可持续的藻类生态系统！\n\n");
+    msg += tr("【当前资源】\n");
+    msg += tr("  糖类：%1 / 500\t脂质：%2 / 300\n  蛋白质：%3 / 200\t维生素：%4 / 100\n").arg(QString::number(carb, 'f', 1)).arg(QString::number(lipid, 'f', 1)).arg(QString::number(pro, 'f', 1)).arg(QString::number(vit, 'f', 1));
+    msg += tr("【当前生产速率】\n");
+    msg += tr("  糖类：%1 / 50/秒\t脂质：%2 / 30/秒\n  蛋白质：%3 / 20/秒\t维生素：%4 / 10/秒\n").arg(QString::number(cr, 'f', 1)).arg(QString::number(lr, 'f', 1)).arg(QString::number(pr, 'f', 1)).arg(QString::number(vr, 'f', 1));
+    msg += tr("\n【分数构成】\n  资源得分：%1\n  速率得分：%2\n  总分：%3\n  最高分：%4\n").arg(QString::number(resourceScore, 'f', 1)).arg(QString::number(rateScore, 'f', 1)).arg(totalScore).arg(m_highScore);
     if (!isFullWin) {
-        msg += "\n注意：未完全达标，分数已减半。";
+        msg += tr("\n注意：未完全达标，分数已减半。\n");
+    } else {
+        msg += tr("\n已完全达标，可继续挑战更高分数！\n");
     }
-    QMessageBox::information(this, tr("胜利!"), msg); // 弹出胜利提示
+    msg += tr("\n你可以继续优化布局，追求极限分数！\n");
+    QMessageBox::information(this, tr("胜利！"), msg); // 弹出胜利提示
 }
 
 // 键盘按下事件处理
@@ -901,7 +894,7 @@ void MainWindow::setupUI() {
             "<b style='color:#111;'>小球藻 Chlorella</b><br>"
             "光照需求: 18/14/10<br>种植消耗: 糖×8, 脂质×6, 维生素×2<br>遮光效果: 下方2格, 各-5<br>消耗: N×2/秒, C×6/秒<br>产出: 糖×3/秒, 脂质×4/秒, 维生素×1/秒<br>特性: 提升左右恢复速率<br><br>"
             "<b style='color:#111;'>小型硅藻 Cyclotella</b><br>"
-            "光照需求: 12/8/6<br>种植消耗: 糖×5, 蛋白×2, 维生素×8<br>遮光效果: 无<br>消耗: N×2/秒, C×12/秒<br>产出: 糖×3/秒, 蛋白×3/秒, 维生素×5/秒<br>特性: 与小球藻连接时糖减产<br><br>"
+            "光照需求: 12/8/6<br>种植消耗: 糖×16, 蛋白×8, 维生素×24<br>遮光效果: 无<br>消耗: N×3/秒, C×18/秒<br>产出: 糖×1.5/秒, 蛋白×1.5/秒, 维生素×2.5/秒<br>特性: 与小球藻连接时糖减产<br><br>"
             "<b style='color:#111;'>裸藻 Euglena</b><br>"
             "光照需求: 16/12/8<br>种植消耗: 糖×12, 脂质×8, 蛋白×6, 维生素×6<br>遮光效果: 下方1格, -4<br>消耗: N×1.5/秒, C×7/秒<br>产出: 糖×2.5/秒, 脂质×1.5/秒, 蛋白×1.5/秒, 维生素×1.5/秒<br>特性: 与螺旋藻/小球藻/小型硅藻相邻时协同增益，双方产量+20%<br><br>"
             "<b style='color:#111;'>蓝藻 Cyanobacteria</b><br>"
@@ -1214,7 +1207,8 @@ void MainWindow::onResourcesChanged() {
     updateWinProgress();
     updateWinConditionLabels();
     updateScoreBar();
-    onProductionRatesChanged();
+    // 移除全局刷新，提高性能
+    // onProductionRatesChanged();
 }
 
 // 生产速率变化槽
@@ -1238,6 +1232,7 @@ void MainWindow::onProductionRatesChanged() {
     m_lblProRate->setStyleSheet(rateStyle(pr >= TARGET_PRO_RATE));
     m_lblVitRate->setText(QString("%1 / %2 %3").arg(QString::number(vr, 'f', 1)).arg(TARGET_VIT_RATE, 0, 'f', 0).arg(vr >= TARGET_VIT_RATE ? "✅" : "❌"));
     m_lblVitRate->setStyleSheet(rateStyle(vr >= TARGET_VIT_RATE));
+    // 不再全局刷新网格
 }
 
 // 刷新通关进度条
@@ -1393,8 +1388,8 @@ void MainWindow::showTraitDetailDialog() {
         "<ul style='margin-top:0;'>"
         "<li>与小球藻相邻时，糖产量减半，格子右下角出现黄色圆底❗。</li>"
         "<li>无遮光，不影响下方光照。</li>"
-        "<li>产出：糖×3/秒，蛋白×3/秒，维生素×5/秒。</li>"
-        "<li>消耗：N×2/秒，C×12/秒。</li>"
+        "<li>产出：糖×1.5/秒，蛋白×1.5/秒，维生素×2.5/秒。</li>"
+        "<li>消耗：N×3/秒，C×18/秒。</li>"
         "<li>适合与螺旋藻、小球藻错开混合，避免与小球藻直接相邻。</li>"
         "</ul>"
         "<b style='color:#2196f3;font-size:17px;'>🔵★裸藻 Euglena</b><br>"

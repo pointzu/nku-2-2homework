@@ -36,8 +36,8 @@ AlgaeGame::AlgaeGame(QWidget* parent)
         }
     }
     
-    // 设置定时器，200ms刷新一次
-    m_updateTimer->setInterval(200);  // 200ms 刷新一次
+    // 设置定时器，50ms刷新一次（提升流畅度）
+    m_updateTimer->setInterval(50);  // 50ms 刷新一次（20帧/秒）
     connect(m_updateTimer, &QTimer::timeout, this, &AlgaeGame::update);
 }
 
