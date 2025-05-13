@@ -174,6 +174,7 @@ void MainWindow::restartGame() {
     onProductionRatesChanged();
 
     statusBar()->showMessage(tr("游戏已重新开始"), 2000);
+    if (m_bgmPlayer) m_bgmPlayer->play();
 }
 
 // 退出游戏
