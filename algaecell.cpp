@@ -8,6 +8,7 @@
 #include <QDebug>
 #include <QFile>
 #include <QSoundEffect>
+#include "mainwindow.h" // 确保MainWindow类型可用
 
 // 藻类单元格构造函数
 AlgaeCell::AlgaeCell(int row, int col, GameGrid* parent)
@@ -161,6 +162,39 @@ void AlgaeCell::paintEvent(QPaintEvent* event)
     QColor bgColor = QColor::fromHsv(210, 30, 220 * ratio + 30 * (1 - ratio));
     painter.fillRect(cellRect, bgColor);
 
+    // 2. 未种植时根据光照条件高亮，逻辑只依赖getLightAt和当前选中藻类的光照需求
+    // 保证同一列L值相同的格子显示完全一致
+    if (!isOccupied()) {
+        AlgaeType::Type selType = AlgaeType::NONE;
+        if (m_grid && m_grid->parentWidget()) {
+            QWidget* w = m_grid->parentWidget();
+            while (w) {
+                MainWindow* mainWin = qobject_cast<MainWindow*>(w);
+                if (mainWin) {
+                    selType = mainWin->getGame()->getSelectedAlgaeType();
+                    break;
+                }
+                w = w->parentWidget();
+            }
+        }
+        if (selType != AlgaeType::NONE) {
+            auto props = AlgaeType::getProperties(selType);
+            double light = m_grid ? m_grid->getLightAt(m_row, m_col) : 0.0;
+            // 只根据光照数值和需求判断高亮
+            if (light >= props.lightRequiredPlant) {
+                // 光照充足，不高亮
+            } else if (light >= props.lightRequiredMaintain) {
+                // 光照不足但可维持，黄色高亮
+                painter.setPen(QPen(QColor(255,200,0,200), 4));
+                painter.drawRect(cellRect.adjusted(2,2,-2,-2));
+            } else {
+                // 光照极低，红色高亮
+                painter.setPen(QPen(QColor(255,0,0,200), 4));
+                painter.drawRect(cellRect.adjusted(2,2,-2,-2));
+            }
+        }
+    }
+
     // 2. 遮荫区颜色随遮光强度变化
     if (m_showShadingArea && m_type != AlgaeType::NONE) {
         int shade = m_grid ? m_grid->calculateShadingAt(m_row, m_col) : 0;
@@ -229,7 +263,7 @@ void AlgaeCell::paintEvent(QPaintEvent* event)
             painter.drawText(markRect, Qt::AlignCenter, "-");
             painter.restore();
         }
-        // B型被加速：右上角绿色圆底白色粗体"+"
+        // B型被加速：所有产量翻倍（无论自身类型，只要被加速）
         if (isBoostedByNeighborB()) {
             painter.save();
             int r = 18;
@@ -289,6 +323,33 @@ void AlgaeCell::enterEvent(QEnterEvent* event)
     setHovered(true);
     QWidget::update();
     QWidget::enterEvent(event);
+    if (!isOccupied()) {
+        AlgaeType::Type selType = AlgaeType::NONE;
+        if (m_grid && m_grid->parentWidget()) {
+            QWidget* w = m_grid->parentWidget();
+            while (w) {
+                MainWindow* mainWin = qobject_cast<MainWindow*>(w);
+                if (mainWin) {
+                    selType = mainWin->getGame()->getSelectedAlgaeType();
+                    break;
+                }
+                w = w->parentWidget();
+            }
+        }
+        if (selType != AlgaeType::NONE) {
+            auto props = AlgaeType::getProperties(selType);
+            double light = m_grid ? m_grid->getLightAt(m_row, m_col) : 0.0;
+            QString tip;
+            if (light >= props.lightRequiredPlant) {
+                tip = "光照充足，可种植";
+            } else if (light >= props.lightRequiredMaintain) {
+                tip = QString("光照不足，无法正常种植（需求%1，当前%2）").arg(props.lightRequiredPlant).arg(QString::number(light, 'f', 1));
+            } else {
+                tip = QString("光照极低，无法种植（需求%1，当前%2）").arg(props.lightRequiredPlant).arg(QString::number(light, 'f', 1));
+            }
+            QToolTip::showText(mapToGlobal(rect().center()), tip, this);
+        }
+    }
 }
 
 void AlgaeCell::leaveEvent(QEvent* event)
@@ -296,6 +357,7 @@ void AlgaeCell::leaveEvent(QEvent* event)
     setHovered(false);
     QWidget::update();
     QWidget::leaveEvent(event);
+    QToolTip::hideText();
 }
 
 void AlgaeCell::mousePressEvent(QMouseEvent* event)
@@ -339,6 +401,13 @@ void AlgaeCell::updateProductionRates() {
         m_lipidProduction *= 0.5;
         m_proProduction *= 0.5;
         m_vitProduction *= 0.5;
+    }
+    // B型被加速：所有产量翻倍（无论自身类型，只要被加速）
+    if (isBoostedByNeighborB()) {
+        m_carbProduction *= 2.0;
+        m_lipidProduction *= 2.0;
+        m_proProduction *= 2.0;
+        m_vitProduction *= 2.0;
     }
     // C型被B减产：糖产量减半
     if (m_type == AlgaeType::TYPE_C && isReducedByNeighborB()) {
@@ -401,3 +470,10 @@ void AlgaeCell::checkSpecialRules() {
         }
     }
 }
+
+void AlgaeCell::setReducedByNeighborA(bool v) { m_isReducedByNeighborA = v; updateProductionRates(); }
+void AlgaeCell::setBoostedByNeighborB(bool v) { m_isBoostedByNeighborB = v; updateProductionRates(); }
+void AlgaeCell::setReducedByNeighborB(bool v) { m_isReducedByNeighborB = v; updateProductionRates(); }
+void AlgaeCell::setSynergizedByNeighbor(bool v) { m_isSynergizedByNeighbor = v; updateProductionRates(); }
+void AlgaeCell::setSynergizingNeighbor(bool v) { m_isSynergizingNeighbor = v; updateProductionRates(); }
+void AlgaeCell::setLightedByE(bool v) { m_isLightedByE = v; updateProductionRates(); }

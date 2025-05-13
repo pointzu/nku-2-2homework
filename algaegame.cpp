@@ -96,7 +96,7 @@ bool AlgaeGame::plantAlgae(int row, int col) {
     double lipid = m_resources->getLipids();
     double pro = m_resources->getProteins();
     double vit = m_resources->getVitamins();
-    double light = m_grid->getLightAt(row);
+    double light = m_grid->getLightAt(row, col);
     bool canAfford = AlgaeType::canAfford(m_selectedAlgaeType, carb, lipid, pro, vit);
     if (!canAfford) {
         // 资源不足，不能种植

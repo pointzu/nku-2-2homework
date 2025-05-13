@@ -159,8 +159,20 @@ AlgaeCell* GameGrid::getCell(int row, int col) const {
 double GameGrid::getLightAt(int row, int col) const {
     if (row >= 0 && row < m_rows && col >= 0 && col < m_cols) {
         double base = m_baseLight[row] - calculateShadingAt(row, col);
-        AlgaeCell* cell = m_cells[row][col];
-        if (cell && cell->isLightedByE()) base += 4.0;
+        // 蓝藻叠加光照
+        int blueAlgaeLight = 0;
+        for (int dr = -1; dr <= 1; ++dr) {
+            for (int dc = -1; dc <= 1; ++dc) {
+                int nr = row + dr, nc = col + dc;
+                if (nr >= 0 && nr < m_rows && nc >= 0 && nc < m_cols) {
+                    AlgaeCell* cell = m_cells[nr][nc];
+                    if (cell && cell->getType() == AlgaeType::TYPE_E) {
+                        blueAlgaeLight += 4;
+                    }
+                }
+            }
+        }
+        base += blueAlgaeLight;
         return base;
     }
     return 0.0;
@@ -445,7 +457,7 @@ void GameGrid::calculateSpecialEffects() {
                 cell->setReducedByNeighborB(false);
                 cell->setSynergizedByNeighbor(false);
                 cell->setSynergizingNeighbor(false);
-                cell->setLightedByE(false);
+                cell->setLightedByE(false); // 这里不再用此标记做光照加成，仅用于可视化
             }
         }
     }
@@ -541,6 +553,22 @@ void GameGrid::calculateSpecialEffects() {
         }
     }
     // --- 再统一补一遍E型加光，防止被覆盖 ---
+    for (int row = 0; row < m_rows; ++row) {
+        for (int col = 0; col < m_cols; ++col) {
+            AlgaeCell* cell = m_cells[row][col];
+            if (cell && cell->getType() == AlgaeType::TYPE_E) {
+                for (int dr = -1; dr <= 1; ++dr) {
+                    for (int dc = -1; dc <= 1; ++dc) {
+                        int nr = row + dr, nc = col + dc;
+                        if (nr >= 0 && nr < m_rows && nc >= 0 && nc < m_cols) {
+                            m_cells[nr][nc]->setLightedByE(true);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    // --- 蓝藻光照特性可视化（不再影响光照计算，仅用于格子高亮） ---
     for (int row = 0; row < m_rows; ++row) {
         for (int col = 0; col < m_cols; ++col) {
             AlgaeCell* cell = m_cells[row][col];

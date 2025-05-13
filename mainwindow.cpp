@@ -313,7 +313,7 @@ void CellWidget::paintEvent(QPaintEvent* event) {
             grid = qobject_cast<GameGrid*>(m_cell->parentWidget());
         }
         double light = 0.0;
-        if (grid) light = grid->getLightAt(m_row);
+        if (grid) light = grid->getLightAt(m_row, m_col); // 只用格子实际光照
         int lightBarH = 4;
         int lightBarW = width() - 8;
         QRect lightRect(4, height() - lightBarH - 2, lightBarW, lightBarH);
@@ -405,7 +405,7 @@ void CellWidget::paintEvent(QPaintEvent* event) {
             if (selType != AlgaeType::NONE && m_hovered) {
                 l = grid->getLightAtIfPlanted(m_row, m_col, selType);
             } else {
-                l = grid->getLightAt(m_row);
+                l = grid->getLightAt(m_row, m_col); // 只用格子实际光照
             }
             // 图标+文字
             QPixmap iconN(":/icons/nitrogen.png");
@@ -468,7 +468,7 @@ void CellWidget::paintEvent(QPaintEvent* event) {
     if (grid) {
         double n = grid->getNitrogenAt(m_row, m_col);
         double c = grid->getCarbonAt(m_row, m_col);
-        double l = grid->getLightAt(m_row, m_col);
+        double l = grid->getLightAt(m_row, m_col); // 只用格子实际光照
 
         // 第一行：N、C，第二行：L
         QRect outRect1(rect().left(), rect().bottom() - 44, rect().width(), 12); // N、C行更上移

@@ -74,22 +74,22 @@ public:
     bool m_isReducedByNeighborA = false;
     bool m_isBoostedByNeighborB = false;
     bool m_isReducedByNeighborB = false;
-    void setReducedByNeighborA(bool v) { m_isReducedByNeighborA = v; }
+    void setReducedByNeighborA(bool v);
     bool isReducedByNeighborA() const { return m_isReducedByNeighborA; }
-    void setBoostedByNeighborB(bool v) { m_isBoostedByNeighborB = v; }
+    void setBoostedByNeighborB(bool v);
     bool isBoostedByNeighborB() const { return m_isBoostedByNeighborB; }
-    void setReducedByNeighborB(bool v) { m_isReducedByNeighborB = v; }
+    void setReducedByNeighborB(bool v);
     bool isReducedByNeighborB() const { return m_isReducedByNeighborB; }
     // D型协同特性
     bool m_isSynergizedByNeighbor = false; // 被D型协同
     bool m_isSynergizingNeighbor = false;  // D型正在协同别人
-    void setSynergizedByNeighbor(bool v) { m_isSynergizedByNeighbor = v; }
+    void setSynergizedByNeighbor(bool v);
     bool isSynergizedByNeighbor() const { return m_isSynergizedByNeighbor; }
-    void setSynergizingNeighbor(bool v) { m_isSynergizingNeighbor = v; }
+    void setSynergizingNeighbor(bool v);
     bool isSynergizingNeighbor() const { return m_isSynergizingNeighbor; }
     // E型加光特性
     bool m_isLightedByE = false; // 被E型加光
-    void setLightedByE(bool v) { m_isLightedByE = v; }
+    void setLightedByE(bool v);
     bool isLightedByE() const { return m_isLightedByE; }
 
 protected:
